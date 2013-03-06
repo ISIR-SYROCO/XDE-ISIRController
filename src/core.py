@@ -65,6 +65,7 @@ class ISIRCtrl(dsimi.rtt.Task):
         self.s.setTorqueLimits(lgsm.vector(torque_limits))
 
 
+
     ##################################
     # Methods to easily create tasks #
     ##################################
@@ -105,6 +106,18 @@ class ISIRCtrl(dsimi.rtt.Task):
         """
         self.s.createContactTask(name, segment, H_segment_frame, mu, margin)
         return ISIRTask(self, name, ISIRTask.CONTACTTASK, weight, level)
+
+
+
+    ###################################
+    # Methods for contact information #
+    ###################################
+    def addContactInformation(self, portName, segmentName, outContactPort):
+        """
+        """
+        self.s.addContactInformation(portName, segmentName)
+        outContactPort.connectTo(self.getPort(portName))
+
 
 
 
