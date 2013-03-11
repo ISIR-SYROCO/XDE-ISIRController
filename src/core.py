@@ -77,8 +77,7 @@ class ISIRCtrl(dsimi.rtt.Task):
         self.s.setJointLimits(lgsm.vector(lower_bounds), lgsm.vector(upper_bounds))
 
     def setHorizonOfPrediction(self, horizon):
-        """ Set the horizon of prediction (in second) for the joint limit constraint.
-        """
+        """ Set the horizon of prediction (in second) for the joint limit constraint. """
         self.s.setHorizonOfPrediction(horizon)
 
     def setTorqueLimits(self, torque_limits):
@@ -88,7 +87,18 @@ class ISIRCtrl(dsimi.rtt.Task):
         """
         self.s.setTorqueLimits(lgsm.vector(torque_limits))
 
-
+    def setFixedRootPosition(self, H_root):
+        """ Set the root position when the robot has a fixed base.
+        
+        When you change the root position of a fixed robot with method 'set_H_root_bm' for instance,
+        the modification is not taken into account in your dynamic model saved in the controller.
+        This can lead to miscalculation when updating task and constraints.
+        To take into account this modification, you must update your model with method 'setFreeFlyerPosition',
+        or you must use this method.
+        
+        :param H_root: a lgsm.Displacement which represent the root position from ground
+        """
+        self.s.setFixedRootPosition(H_root)
 
     ##################################
     # Methods to easily create tasks #
@@ -188,7 +198,7 @@ class ISIRCtrl(dsimi.rtt.Task):
     # Methods for contact information #
     ###################################
     def addContactInformation(self, portName, segmentName, outContactPort):
-        """ add contact information in the solver to update contact task/constraints.
+        """ Add contact information in the solver to update contact task/constraints.
         
         :param portName: the name of the input port that will receive the contact information
         :param segmentName: the segment name on which applies the contact information
@@ -196,6 +206,24 @@ class ISIRCtrl(dsimi.rtt.Task):
         """
         self.s.addContactInformation(portName, segmentName)
         outContactPort.connectTo(self.getPort(portName))
+
+
+
+    ##########################
+    # Enable/Disable methods #
+    ##########################
+    def enableJointLimits(self, enabled):
+        """ Enable/disable the joint limits constraint. """
+        self.s.enableJointLimits(enabled)
+
+    def enableTorqueLimits(self, enabled):
+        """ Enable/disable the torque limits constraint. """
+        self.s.enableTorqueLimits(enabled)
+
+    def enableContactAvoidance(self, enabled):
+        """ Enable/disable the contact avoidance constraint. """
+        self.s.enableContactAvoidance(enabled)
+
 
 
 
