@@ -28,7 +28,7 @@ class ISIRCtrl(dsimi.rtt.Task):
     """ Proxy of orcisir_ISIRController.
     """
 
-    def __init__(self, libdir, dynamic_model, physic_agent, robotState_prefix, robotJointTorque_prefix, sync_connector=None, solver="quadprog"):
+    def __init__(self, libdir, dynamic_model, robotName, physic_agent, sync_connector=None, solver="quadprog", useReducedProblem=False):
         """ Instantiate proxy of controller.
         
         :param libdir: path string where one can find the lib 'orcisir_Orocos_IsirController-gnulinux'
@@ -45,23 +45,28 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         # set dynamic model and init inner solver
         self.dynamic_model = dynamic_model
-        self.s.setDynModelPointerStr(str(self.dynamic_model.this.__long__()), solver) #or "qld" or "quadprog"
+        self.s.setDynModelPointerStr(str(self.dynamic_model.this.__long__()), solver, useReducedProblem) #or "qld" or "quadprog"
         
         self.NDOF0 = 6
         if self.dynamic_model.hasFixedRoot():
             self.NDOF0 = 0
 
+        # create connector in the physical agent: out.connector for robot state, and in.connector for tau
+        robotPrefix = robotName+"_"
+        physic_agent.s.Connectors.IConnectorRobotJointTorque.new(robotName+".ict", robotPrefix, robotName)
+        physic_agent.s.Connectors.OConnectorRobotState.new(robotName+".ocpos", robotPrefix, robotName)
+
         # set connection from physic to controller
-        physic_agent.getPort(robotState_prefix+"q").connectTo(self.getPort("q"))
-        physic_agent.getPort(robotState_prefix+"qdot").connectTo(self.getPort("qDot"))
-        physic_agent.getPort(robotState_prefix+"Hroot").connectTo(self.getPort("Hroot"))
-        physic_agent.getPort(robotState_prefix+"Troot").connectTo(self.getPort("Troot"))
+        physic_agent.getPort(robotPrefix+"q").connectTo(self.getPort("q"))
+        physic_agent.getPort(robotPrefix+"qdot").connectTo(self.getPort("qDot"))
+        physic_agent.getPort(robotPrefix+"Hroot").connectTo(self.getPort("Hroot"))
+        physic_agent.getPort(robotPrefix+"Troot").connectTo(self.getPort("Troot"))
         physic_agent.getPort("contacts").connectTo(self.getPort("contacts"))
 
         # set connection from controller to physic
         if sync_connector is not None:
-            sync_connector.addEvent(robotJointTorque_prefix+"tau")
-        self.getPort("tau").connectTo(physic_agent.getPort(robotJointTorque_prefix+"tau"))
+            sync_connector.addEvent(robotPrefix+"tau")
+        self.getPort("tau").connectTo(physic_agent.getPort(robotPrefix+"tau"))
 
 
 
@@ -76,9 +81,9 @@ class ISIRCtrl(dsimi.rtt.Task):
         """
         self.s.setJointLimits(lgsm.vector(lower_bounds), lgsm.vector(upper_bounds))
 
-    def setHorizonOfPrediction(self, horizon):
+    def setJointLimitsHorizonOfPrediction(self, horizon):
         """ Set the horizon of prediction (in second) for the joint limit constraint. """
-        self.s.setHorizonOfPrediction(horizon)
+        self.s.setJointLimitsHorizonOfPrediction(horizon)
 
     def setTorqueLimits(self, torque_limits):
         """ Set the torque limits for the associated constraint.
@@ -86,6 +91,14 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param torque_limits: torque limits, dim=model.nbInternalDofs()
         """
         self.s.setTorqueLimits(lgsm.vector(torque_limits))
+
+    def setContactAvoidanceHorizonOfPrediction(self, horizon):
+        """ Set the horizon of prediction (in second) for the contact avoidance constraint. """
+        self.s.setContactAvoidanceHorizonOfPrediction(horizon)
+
+    def setContactAvoidanceMargin(self, margin):
+        """ Set the horizon of prediction (in second) for the contact avoidance constraint. """
+        self.s.setContactAvoidanceMargin(margin)
 
     def setFixedRootPosition(self, H_root):
         """ Set the root position when the robot has a fixed base.
@@ -99,6 +112,8 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param H_root: a lgsm.Displacement which represent the root position from ground
         """
         self.s.setFixedRootPosition(H_root)
+
+
 
     ##################################
     # Methods to easily create tasks #
@@ -173,7 +188,7 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
-        self.s.createCoMTask(name, dofs)
+        self.s.createCoMTask(name, dofs.upper())
         return ISIRTask(self, name, ISIRTask.COMTASK, weight, level)
 
     def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., level=0):
@@ -197,17 +212,23 @@ class ISIRCtrl(dsimi.rtt.Task):
     ###################################
     # Methods for contact information #
     ###################################
-    def addContactInformation(self, portName, segmentName, outContactPort):
+    def addContactInformation(self, phy_outContactPort, ctrl_inPortName, segmentName):
         """ Add contact information in the solver to update contact task/constraints.
         
-        :param portName: the name of the input port that will receive the contact information
+        :param phy_outContactPort: the dsimi.rtt.OutputPort which will transmit the contact information from physic agent
+        :param ctrl_inPortName: the name of the input port that will receive the contact information into the controller
         :param segmentName: the segment name on which applies the contact information
-        :param outContactPort: the dsimi.rtt.OutputPort which will transmit the contact information
         """
-        self.s.addContactInformation(portName, segmentName)
-        outContactPort.connectTo(self.getPort(portName))
+        self.s.addContactInformation(ctrl_inPortName, segmentName)
+        phy_outContactPort.connectTo(self.getPort(ctrl_inPortName))
 
-
+    def useContactInformation(self, ctrl_inPortName, isUsed):
+        """ Define if a contact information port is used for obstacle avoidance.
+        
+        :param ctrl_inPortName: the name of the input port that will receive the contact information into the controller
+        :param isUsed: enable/disable contact information
+        """
+        self.s.useContactInformation(ctrl_inPortName, isUsed)
 
     ##########################
     # Enable/Disable methods #
