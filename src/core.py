@@ -129,8 +129,8 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
-        self.s.createFullTask(name)
-        return ISIRTask(self, name, ISIRTask.FULLTASK, weight, level)
+        index = self.s.createFullTask(name)
+        return ISIRTask(self, name, index, ISIRTask.FULLTASK, weight, level)
 
     def createPartialTask(self, name, dofs, weight=1., level=0):
         """ Create a task that control some state of the model.
@@ -154,8 +154,8 @@ class ISIRCtrl(dsimi.rtt.Task):
                 d_idx = self.dynamic_model.getSegmentIndex(d)
                 dofs_index.append(self.NDOF0 + d_idx)
 
-        self.s.createPartialTask(name, dofs_index)
-        return ISIRTask(self, name, ISIRTask.PARTIALTASK, weight, level)
+        index = self.s.createPartialTask(name, dofs_index)
+        return ISIRTask(self, name, index, ISIRTask.PARTIALTASK, weight, level)
 
     def createFrameTask(self, name, segmentName, H_segment_frame, dofs, weight=1., level=0):
         """ Create a task that control a frame of the model.
@@ -172,8 +172,8 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
-        self.s.createFrameTask(name, segmentName, lgsm.Displacement(H_segment_frame), dofs.upper())
-        return ISIRTask(self, name, ISIRTask.FRAMETASK, weight, level)
+        index = self.s.createFrameTask(name, segmentName, lgsm.Displacement(H_segment_frame), dofs.upper())
+        return ISIRTask(self, name, index, ISIRTask.FRAMETASK, weight, level)
 
     def createCoMTask(self, name, dofs, weight=1., level=0):
         """ Create a task that control the Center of Mass (CoM) of the model.
@@ -188,8 +188,8 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
-        self.s.createCoMTask(name, dofs.upper())
-        return ISIRTask(self, name, ISIRTask.COMTASK, weight, level)
+        index = self.s.createCoMTask(name, dofs.upper())
+        return ISIRTask(self, name, index, ISIRTask.COMTASK, weight, level)
 
     def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., level=0):
         """ Create a task for frictional interaction with the environment.
@@ -204,8 +204,8 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
-        self.s.createContactTask(name, segmentName, lgsm.Displacement(H_segment_frame), mu, margin)
-        return ISIRTask(self, name, ISIRTask.CONTACTTASK, weight, level)
+        index = self.s.createContactTask(name, segmentName, lgsm.Displacement(H_segment_frame), mu, margin)
+        return ISIRTask(self, name, index, ISIRTask.CONTACTTASK, weight, level)
 
 
 
@@ -266,7 +266,7 @@ class ISIRTask(object):
     COMTASK     = "CoMTask"
     CONTACTTASK = "contactTask"
     
-    def __init__(self, ctrl, name, taskType, weight=1., level=0):
+    def __init__(self, ctrl, name, index, taskType, weight=1., level=0):
         """ Instantiate a proxy of an ISIRTask.
         
         Warning: when creating this proxy the task must have been registred by the controller before.
@@ -278,14 +278,17 @@ class ISIRTask(object):
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
         """
-        self.ctrl = ctrl
-        self.name = name
+        self.ctrl     = ctrl
+        self.name     = name
+        self.index    = index
         self.taskType = taskType
+        
+        print "TASK", name, ":", index
         
         self.setWeight(weight)
         self.setLevel(level)
         
-        self.dimension = self.ctrl.s.getTaskDimension(self.name)
+        self.dimension = self.ctrl.s.getTaskDimension(self.index)
         
         self.updateTaskFunction = None
         if taskType   == self.FULLTASK:
@@ -305,27 +308,27 @@ class ISIRTask(object):
         """
         if kd is None:
             kd = 2.*lgsm.math.sqrt(kp)
-        self.ctrl.s.setTaskKpKd(self.name, kp, kd)
+        self.ctrl.s.setTaskKpKd(self.index, kp, kd)
 
     def setWeight(self, weight):
         """ Set task weight """
-        self.ctrl.s.setTaskWeight(self.name, weight)
+        self.ctrl.s.setTaskWeight(self.index, weight)
 
     def setLevel(self, level):
         """ Set task level """
-        self.ctrl.s.setTaskLevel(self.name, level)
+        self.ctrl.s.setTaskLevel(self.index, level)
 
     def activateAsObjective(self):
         """ Set task as an objective, meaning that an error may occur """
-        self.ctrl.s.activateTaskAsObjective(self.name)
+        self.ctrl.s.activateTaskAsObjective(self.index)
 
     def activateAsConstraint(self):
         """ Set task as a constraint, meaning that no error should occur """
-        self.ctrl.s.activateTaskAsConstraint(self.name)
+        self.ctrl.s.activateTaskAsConstraint(self.index)
 
     def deactivate(self):
         """ Deactive objectives and constraints linked to the task """
-        self.ctrl.s.deactivateTask(self.name)
+        self.ctrl.s.deactivateTask(self.index)
 
     def update(self, posDes, velDes, accDes=None):
         """ Update the desired values tracked by the task.
@@ -337,7 +340,7 @@ class ISIRTask(object):
         """
         if accDes is None:
             accDes = lgsm.zero(self.dimension)
-        self.updateTaskFunction(self.name, posDes, velDes, accDes)
+        self.updateTaskFunction(self.index, posDes, velDes, accDes)
 
 
     def getError(self):
@@ -345,14 +348,14 @@ class ISIRTask(object):
         
         :rtype: a lgsm.vector of position error
         """
-        return self.ctrl.s.getTaskError(self.name)
+        return self.ctrl.s.getTaskError(self.index)
 
     def getErrorDot(self):
         """ get the tracking derivative error (the velocity error)
         
         :rtype: a lgsm.vector of velocity error
         """
-        return self.ctrl.s.getTaskErrorDot(self.name)
+        return self.ctrl.s.getTaskErrorDot(self.index)
 
 
 
