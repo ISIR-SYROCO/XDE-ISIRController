@@ -13,7 +13,7 @@ import time
 dt = 0.01
 wm = xwm.WorldManager()
 wm.createAllAgents(dt, lmd_max=.2)
-wm.resizeWindow("mainWindow",  1000, 50, 640, 480)
+wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 
 ##### ROBOT

@@ -13,7 +13,7 @@ import time
 dt = 0.01
 wm = xwm.WorldManager()
 wm.createAllAgents(dt, lmd_max=.2)
-wm.resizeWindow("mainWindow",  1000, 50, 640, 480)
+wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 
 ##### ROBOT
@@ -28,7 +28,7 @@ N = robot.getJointSpaceDim()
 ##### CTRL
 import xde_isir_controller as xic
 dynModel = physicshelper.createDynamicModel(robotWorld, rname)
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog")
+ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 
 
 gposdes = 1.2 * lgsm.ones(N)

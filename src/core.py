@@ -37,6 +37,7 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param robotJointTorque_prefix: the prefix string given to the IConnectorRobotJointTorque linked with the robot
         :param sync_connector: the synchronisation connector when this is required (in the WorldManager package, it is WorldManager.icsync)
         :param solver: a string to choose the internal solve; for now "quadprog" or "qld"
+        :param useReducedProblem: whether on want to solve the problem in [ddq, torque, fc] (True) or [torque, fc] (False)
         """
         orocos_ICTask = ddeployer.load("oIT", "Orocos_ISIRController",
                                        module="orcisir_Orocos_IsirController-gnulinux", prefix="",
@@ -45,7 +46,7 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         # set dynamic model and init inner solver
         self.dynamic_model = dynamic_model
-        self.s.setDynModelPointerStr(str(self.dynamic_model.this.__long__()), solver, useReducedProblem) #or "qld" or "quadprog"
+        self.s.setDynModelPointerStr(str(self.dynamic_model.this.__long__()), solver, useReducedProblem)
         
         self.NDOF0 = 6
         if self.dynamic_model.hasFixedRoot():
@@ -118,7 +119,7 @@ class ISIRCtrl(dsimi.rtt.Task):
     ##################################
     # Methods to easily create tasks #
     ##################################
-    def createFullTask(self, name, weight=1., level=0):
+    def createFullTask(self, name, weight=1., level=0, **kwargs):
         """ Create a task that control the full state of the model.
         
         Generally, to set a reference posture of the robot.
@@ -126,13 +127,14 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param name: the unique name (id) of the task
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
+        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createFullTask(name)
-        return ISIRTask(self, name, index, ISIRTask.FULLTASK, weight, level)
+        return ISIRTask(self, name, index, ISIRTask.FULLTASK, weight, level, **kwargs)
 
-    def createPartialTask(self, name, dofs, weight=1., level=0):
+    def createPartialTask(self, name, dofs, weight=1., level=0, **kwargs):
         """ Create a task that control some state of the model.
         
         Generally, to control a particular subset of the robot, e.g. the arm, the leg, the spine...
@@ -143,6 +145,7 @@ class ISIRCtrl(dsimi.rtt.Task):
                      It also means that the free floating pose can be controlled.
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
+        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
@@ -155,9 +158,9 @@ class ISIRCtrl(dsimi.rtt.Task):
                 dofs_index.append(self.NDOF0 + d_idx)
 
         index = self.s.createPartialTask(name, dofs_index)
-        return ISIRTask(self, name, index, ISIRTask.PARTIALTASK, weight, level)
+        return ISIRTask(self, name, index, ISIRTask.PARTIALTASK, weight, level, **kwargs)
 
-    def createFrameTask(self, name, segmentName, H_segment_frame, dofs, weight=1., level=0):
+    def createFrameTask(self, name, segmentName, H_segment_frame, dofs, weight=1., level=0, **kwargs):
         """ Create a task that control a frame of the model.
         
         Generally to track a pose or a trajectory in the cartesian space.
@@ -169,13 +172,14 @@ class ISIRCtrl(dsimi.rtt.Task):
                      dofs is the combination of the following character (in this order): 'R', 'X', 'Y', 'Z'
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
+        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createFrameTask(name, segmentName, lgsm.Displacement(H_segment_frame), dofs.upper())
-        return ISIRTask(self, name, index, ISIRTask.FRAMETASK, weight, level)
+        return ISIRTask(self, name, index, ISIRTask.FRAMETASK, weight, level, **kwargs)
 
-    def createCoMTask(self, name, dofs, weight=1., level=0):
+    def createCoMTask(self, name, dofs, weight=1., level=0, **kwargs):
         """ Create a task that control the Center of Mass (CoM) of the model.
         
         Generally associated to any balancing control, walking, static equilibrium etc...
@@ -185,13 +189,14 @@ class ISIRCtrl(dsimi.rtt.Task):
                      it is the combination of the following character (in this order): 'X', 'Y', 'Z'
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
+        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createCoMTask(name, dofs.upper())
-        return ISIRTask(self, name, index, ISIRTask.COMTASK, weight, level)
+        return ISIRTask(self, name, index, ISIRTask.COMTASK, weight, level, **kwargs)
 
-    def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., level=0):
+    def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., level=0, **kwargs):
         """ Create a task for frictional interaction with the environment.
         
         :param name: the unique name (id) of the task
@@ -201,11 +206,12 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param margin: margin associated to the friction cone constraint. Positive margin means a thiner cone.
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
+        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createContactTask(name, segmentName, lgsm.Displacement(H_segment_frame), mu, margin)
-        return ISIRTask(self, name, index, ISIRTask.CONTACTTASK, weight, level)
+        return ISIRTask(self, name, index, ISIRTask.CONTACTTASK, weight, level, **kwargs)
 
 
 
@@ -266,7 +272,7 @@ class ISIRTask(object):
     COMTASK     = "CoMTask"
     CONTACTTASK = "contactTask"
     
-    def __init__(self, ctrl, name, index, taskType, weight=1., level=0):
+    def __init__(self, ctrl, name, index, taskType, weight=1., level=0, **kwargs):
         """ Instantiate a proxy of an ISIRTask.
         
         Warning: when creating this proxy the task must have been registred by the controller before.
@@ -277,6 +283,9 @@ class ISIRTask(object):
                          FULLTASK, PARTIALTASK, FRAMETASK, COMTASK, CONTACTTASK
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
+        
+        :param kwargs: some keyword arguments can be pass to quickly initialize task parameters.
+                       these arguments can be any of: kp, kd, pos_des, vel_des, acc_des.
         """
         self.ctrl     = ctrl
         self.name     = name
@@ -291,14 +300,40 @@ class ISIRTask(object):
         self.dimension = self.ctrl.s.getTaskDimension(self.index)
         
         self.updateTaskFunction = None
+        self.null_pos_des       = None
+        self.null_vel_des       = None
+        
         if taskType   == self.FULLTASK:
             self.updateTaskFunction = self.ctrl.s.updateFullTask
+            self.null_pos_des       = lgsm.zero(self.dimension)
+            self.null_vel_des       = lgsm.zero(self.dimension)
+
         elif taskType == self.PARTIALTASK:
-            self.updateTaskFunction = self.ctrl.s.updatePartialTask
+            self.updateTaskFunction = self.ctrl.s.updatePartialTask 
+            self.null_pos_des       = lgsm.zero(self.dimension)
+            self.null_vel_des       = lgsm.zero(self.dimension)
+
         elif taskType == self.FRAMETASK:
             self.updateTaskFunction = self.ctrl.s.updateFrameTask
+            self.null_pos_des       = lgsm.Displacement()
+            self.null_vel_des       = lgsm.Twist()
+
         elif taskType == self.COMTASK:
             self.updateTaskFunction = self.ctrl.s.updateCoMTask
+            self.null_pos_des       = lgsm.Displacement()
+            self.null_vel_des       = lgsm.Twist()
+
+        #treat kwargs arguments
+        if ("kp" in kwargs) or ("kd" in kwargs):
+            kp = kwargs["kp"] if "kp" in kwargs else 0.
+            kd = kwargs["kd"] if "kd" in kwargs else None
+            self.setKpKd(kp, kd)
+
+        if ("pos_des" in kwargs) or ("vel_des" in kwargs) or ("acc_des" in kwargs):
+            pos_des = kwargs["pos_des"] if "pos_des" in kwargs else self.null_pos_des
+            vel_des = kwargs["vel_des"] if "vel_des" in kwargs else self.null_vel_des
+            acc_des = kwargs["acc_des"] if "acc_des" in kwargs else self.null_vel_des
+            self.update(pos_des, vel_des, acc_des)
 
     def setKpKd(self, kp, kd=None):
         """ Set the proportionnal (kp) and derivative (kd) gains of the task.
@@ -339,7 +374,7 @@ class ISIRTask(object):
                        If accDes is None, reference acceleration becomes null.
         """
         if accDes is None:
-            accDes = lgsm.zero(self.dimension)
+            accDes = self.null_vel_des
         self.updateTaskFunction(self.index, posDes, velDes, accDes)
 
 
