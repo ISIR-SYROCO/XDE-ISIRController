@@ -14,6 +14,7 @@ Finally, task instances are separated from the controller to facilitate their us
 
 import deploy.deployer as ddeployer
 import dsimi.rtt
+import rtt_interface
 
 import lgsm
 
@@ -59,7 +60,7 @@ class ISIRCtrl(dsimi.rtt.Task):
 
         # set connection from physic to controller
         physic_agent.getPort(robotPrefix+"q").connectTo(self.getPort("q"))
-        physic_agent.getPort(robotPrefix+"qdot").connectTo(self.getPort("qDot"))
+        physic_agent.getPort(robotPrefix+"qdot").connectTo(self.getPort("qdot"))
         physic_agent.getPort(robotPrefix+"Hroot").connectTo(self.getPort("Hroot"))
         physic_agent.getPort(robotPrefix+"Troot").connectTo(self.getPort("Troot"))
         physic_agent.getPort("contacts").connectTo(self.getPort("contacts"))
@@ -69,6 +70,10 @@ class ISIRCtrl(dsimi.rtt.Task):
             sync_connector.addEvent(robotPrefix+"tau")
         self.getPort("tau").connectTo(physic_agent.getPort(robotPrefix+"tau"))
 
+        self.task_updater = ISIRTaskUpdater()
+        self.getPort("tasks_to_update").connectTo(self.task_updater.getPort("ctrl_trigger"))
+        self.task_updater.getPort("tasks_updated").connectTo(self.getPort("tasks_updated"))
+        self.task_updater.s.start()
 
 
     ########################################################################
@@ -124,7 +129,7 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         Generally, to set a reference posture of the robot.
         
-        :param name: the unique name (id) of the task
+        :param name: the unique nOut[12]: <rtt_interface.TypeInfo; proxy of <Swig Object of typame (id) of the task
         :param weight: the task weight for control trade-off when some tasks are conflicting
         :param level: the task priority for solver; low-leveled task are resolved first
         :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
@@ -335,6 +340,7 @@ class ISIRTask(object):
             acc_des = kwargs["acc_des"] if "acc_des" in kwargs else self.null_vel_des
             self.update(pos_des, vel_des, acc_des)
 
+
     def setKpKd(self, kp, kd=None):
         """ Set the proportionnal (kp) and derivative (kd) gains of the task.
         
@@ -391,6 +397,58 @@ class ISIRTask(object):
         :rtype: a lgsm.vector of velocity error
         """
         return self.ctrl.s.getTaskErrorDot(self.index)
+
+
+
+################################################################################
+################################################################################
+################################################################################
+class ISIRTaskController(object):
+    def __init__(self):
+        pass
+
+    def update(self, tick):
+        pass
+
+
+class ISIRTaskUpdater(dsimi.rtt.Task):
+    """
+    """
+    def __init__(self):
+        """
+        """
+        super(ISIRTaskUpdater, self).__init__(rtt_interface.PyTaskFactory.CreateTask("ISIRTaskUpdater"))
+
+        self.in_ctrl_trigger_port  = self.addCreateInputPort("ctrl_trigger",   "int", True)
+        self.out_task_updated_port = self.addCreateOutputPort("tasks_updated", "int")
+
+
+    def register(self, new_task_controller):
+        """
+        """
+        assert( isinstance(new_task_controller, ISIRTaskController) )
+        self.task_controllers.append(new_task_controller)
+
+    def remove(self, old_task_controller):
+        """
+        """
+        self.task_controllers.remove(old_task_controller)
+
+    def startHook(self):
+        self.task_controllers = []
+
+    def stopHook(self):
+        pass
+
+    def updateHook(self):
+        tick, tick_ok = self.in_ctrl_trigger_port.read()
+        if tick_ok:
+            for t_ctrl in self.task_controllers:    #TODO: should be parallelized
+                t_ctrl.update(tick)
+
+            self.out_task_updated_port.write(tick)  #all task updates done
+
+
 
 
 
