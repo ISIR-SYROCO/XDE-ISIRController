@@ -40,7 +40,7 @@ fullTask.update(gposdes, gveldes)
 
 gposdes = lgsm.Displacement(.4,.4,.4,1,0,0,0)
 gveldes = lgsm.Twist()
-EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(0,0,0), "RXYZ", 1.) # dofs car be replaced by combination of 
+EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(0,0,0), "RXYZ", 1.) # dofs can be replaced by combination of 
 EETask.setKpKd(20)
 EETask.update(gposdes, gveldes)
 

@@ -40,7 +40,7 @@ fullTask.update(gposdes, gveldes)
 
 gposdes = lgsm.Displacement(.1,.1,.2,1,0,0,0)
 gveldes = lgsm.Twist()
-CoMTask = ctrl.createCoMTask("CoM", "XYZ", 1.) # dofs car be replaced by combination of 
+CoMTask = ctrl.createCoMTask("CoM", "XYZ", 1.) # dofs can be replaced by combination of 
 CoMTask.setKpKd(20)
 CoMTask.update(gposdes, gveldes)
 
