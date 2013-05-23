@@ -32,7 +32,7 @@ class TrajectoryTracking(ISIRTaskController):
         """
         self.trajectory  = new_traj
         self.counter     = 0
-        self.max_counter = len(self.trajectory) -1
+        self.max_counter = len(self.trajectory)
 
 
 

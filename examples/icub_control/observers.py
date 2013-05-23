@@ -260,3 +260,96 @@ class ZMPLIPMPositionObserver(Recorder):
         
         pl.show()
 
+
+import os
+
+class ScreenShotObserver(Recorder):
+    def __init__(self, world_manager, rec_folder,  x=800, y=600, cam_traj=None):
+
+        self.wm = world_manager
+
+        Recorder.__init__(self, "ScreenShotObserver", self.wm.phy, self.wm.icsync )
+
+        self.rec_folder = rec_folder
+        try:
+            os.mkdir(rec_folder)
+        except:
+            pass
+        
+        self.idx = 0
+        
+        self.cam_traj = cam_traj
+        if self.cam_traj is None:
+            self.cam_traj = []
+        
+        self.cam_name    = "mainViewportBaseCamera"
+        self.window_name = "mainWindow"
+        
+        d_g_c = self.wm.graph_scn.CameraInterface.getCameraDisplacement(self.cam_name)
+        d_p_c = self.wm.graph_scn.CameraInterface.getCameraDisplacementInPhysicSpace(self.cam_name)
+        
+        self.d_g_p = d_g_c * d_p_c.inverse()
+        
+        self.wm.resizeWindow(self.window_name, x, y)
+
+
+    def doUpdateHook(self):
+        
+        if self.idx < len(self.cam_traj):
+            self.wm.graph_scn.CameraInterface.setCameraDisplacement(self.cam_name, self.d_g_p * self.cam_traj[self.idx] ) #,0.707,0.707,0,0
+        
+        img_name = self.rec_folder + os.sep + "{:06d}.png".format(self.idx)
+        self.wm.graph.s.Viewer.takeScreenShot(self.window_name, img_name)
+        self.idx += 1
+
+
+
+
+def getOrthogonalityData(first, second, tol=1e-6):
+    sinThetaOrthoVec = lgsm.crossprod(first, second)
+    cosTheta         = lgsm.dotprod(  first, second)
+    sinTheta         = lgsm.norm(sinThetaOrthoVec)
+    theta            = lgsm.np.arctan2(sinTheta, cosTheta)
+
+    if sinTheta > tol:
+        OrthoVec = sinThetaOrthoVec / sinTheta
+    else:
+        OrthoVec = None
+
+    return OrthoVec, theta, sinTheta, cosTheta
+
+def rotationToAlignFirstToSecond(first, second):
+    ov, t, st, ct = getOrthogonalityData(first, second)
+
+    if ov is not None:
+        return lgsm.Quaternion( ov, t )
+    else:
+        if ct >= 0:
+            return lgsm.Quaternion(1,0,0,0)
+        else:
+            return lgsm.Quaternion(0,1,0,0)
+
+
+def lookAt(_from, _to, _up):
+    # vec aligned with -z
+    # up  aligned with y
+
+    vec  = _to - _from
+    nvec = lgsm.normalize(vec)
+    minusZ = lgsm.vector(0,0,-1)
+
+    Q_0_Z  = rotationToAlignFirstToSecond(minusZ, vec)
+
+    Up_in_Z = Q_0_Z.inverse() * _up
+
+    ov_Y = lgsm.vector(1,0,0) # = getOrthogonalityData(minusZ, Y)
+    ov_UP, t, st, ct = getOrthogonalityData(minusZ, Up_in_Z)
+    if ov_UP is not None:
+        ov_diff, t_diff, st_diff, ct_diff = getOrthogonalityData(ov_Y, ov_UP)
+        Q_Z_UP = lgsm.Quaternion( ov_diff, t_diff)
+    else:
+        Q_Z_UP = lgsm.Quaternion()
+
+    return lgsm.Displacement(_from, Q_0_Z * Q_Z_UP )
+
+

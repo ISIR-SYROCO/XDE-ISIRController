@@ -371,7 +371,7 @@ class ISIRTask(object):
         """ Deactive objectives and constraints linked to the task """
         self.ctrl.s.deactivateTask(self.index)
 
-    def update(self, posDes, velDes, accDes=None):
+    def update(self, posDes, velDes=None, accDes=None):
         """ Update the desired values tracked by the task.
         
         :param posDes: a lgsm.Displacement or lgsm.vector representing the desired pose, depending on the taskType
@@ -379,6 +379,8 @@ class ISIRTask(object):
         :param accDes: a lgsm.Twist or lgsm.vector representing the reference acceleration, depending on the taskType.
                        If accDes is None, reference acceleration becomes null.
         """
+        if velDes is None:
+            velDes = self.null_vel_des
         if accDes is None:
             accDes = self.null_vel_des
         self.updateTaskFunction(self.index, posDes, velDes, accDes)

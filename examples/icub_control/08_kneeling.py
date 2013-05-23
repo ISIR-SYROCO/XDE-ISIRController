@@ -10,7 +10,6 @@ import time
 pi = lgsm.np.pi
 
 
-
 ##### AGENTS
 dt = 0.01
 wm = xwm.WorldManager()
@@ -26,7 +25,7 @@ wm.addWorld(groundWorld)
 ##### ROBOT
 rname = "robot"
 fixed_base = False
-robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [0,0,0.6,1,0,0,0], fixed_base, .003, 0.001)
+robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [0,0,0.6,0,0,0,1], fixed_base, .003, 0.001)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
@@ -52,24 +51,30 @@ robot.setJointVelocities(lgsm.zeros(N))
 dynModel.setJointVelocities(lgsm.zeros(N))
 
 
+
 ##### CTRL
 import xde_isir_controller as xic
 ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "qld", False)
 
-ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
+ctrl.setTorqueLimits( 150.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)
-ctrl.enableJointLimits(True)
+ctrl.enableJointLimits(False)
+#Warning: joint limits have been changed
+robot.setJointPositionsMin(-10*lgsm.ones(N))
+robot.setJointPositionsMax(+10*lgsm.ones(N))
 
 ##### SET TASKS
 N0 = 6 if fixed_base is False else 0
 
 partialTask = ctrl.createPartialTask("partial", range(N0, N+N0), 0.0001, kp=9., pos_des=qinit)
 
-#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 1.0, kp=25., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
+#waistTask   = ctrl.createFrameTask("waist",   rname+'.waist', lgsm.Displacement(), "R", 1.0, kp=25., pos_des=lgsm.Displacement(0,0,.56,0,0,0,1))
+#waistTaskUp = ctrl.createFrameTask("waistUP", rname+'.waist', lgsm.Displacement(), "Z", 1.0, kp=25., pos_des=lgsm.Displacement(0,0,.56,0,0,0,1))
 
 back_name   = [rname+"."+n for n in ['lap_belt_1', 'lap_belt_2', 'chest']]
 backTask    = ctrl.createPartialTask("back", back_name, 1.0, kp=25., pos_des=lgsm.zeros(3))
 
+#kneeTask   = ctrl.createFrameTask("Rknee", rname+'.l_shank', lgsm.Displacement(), "Z", 0., kp=4., pos_des=lgsm.Displacement(0,0,.15))
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
 RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
@@ -94,35 +99,22 @@ for c in l_contacts + r_contacts:
 ##### SET TASK CONTROLLERS
 RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-H_lf_sole = lgsm.Displacement(lgsm.vector(-.039, 0, .034 + 0.006), RotLZdown )
-H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034 - 0.006), RotRZdown )
+H_lf_sole = lgsm.Displacement(lgsm.vector(-.039, 0, .034), RotLZdown )
+H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034), RotRZdown )
 walkingTask = xic.walk.WalkingTask( ctrl, dt, 
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
-                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.58,0,0,0,1),
+                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56),
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=False)
 
 
+walkingTask.stayIdle()
 
-zmp_ref = walkingTask.goTo([-0.5,0.])
 
 ##### OBSERVERS
-from observers import ZMPLIPMPositionObserver, ScreenShotObserver, lookAt
+from observers import ZMPLIPMPositionObserver
 zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002), dt, 9.81, wm.phy, wm.icsync)
 zmplipmpobs.s.start()
-
-#if fixed camera
-cam_traj = [lookAt(lgsm.vector(-2,1.5,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1))]
-# or with a moving camera
-R, W, P = 2., 2*pi/7., pi/4.
-cam_traj
-for tt in lgsm.np.arange(0, 11, dt):
-    x = -0.5 + R*lgsm.np.cos(tt*W+P)
-    y =      + R*lgsm.np.sin(tt*W+P)
-    cam_traj.append(lookAt(lgsm.vector(x,y,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1)))
-
-screenobs = ScreenShotObserver(wm, "rec", cam_traj=cam_traj)
-screenobs.s.start()
 
 
 ##### SIMULATE
@@ -131,11 +123,21 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
+#import dsimi.interactive
+#dsimi.interactive.shell()()
+time.sleep(0.)
+
+walkingTask.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
+zmp_ref = walkingTask.moveOneFoot("left", .22, .05, angle=0)
+
 
 walkingTask.wait_for_end_of_walking()
-print "END OF WALKING TASK"
+print "END OF STEP"
+
+walkingTask.set_waist_altitude(lgsm.Displacement(0,0,.45))
 
 
+time.sleep(5.)
 
 wm.stopAgents()
 ctrl.s.stop()
@@ -143,8 +145,6 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-screenobs.s.stop()
-
 zmplipmpobs.s.stop()
 
 zmplipmpobs.plot(zmp_ref)

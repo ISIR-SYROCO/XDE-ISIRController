@@ -11,6 +11,8 @@ import numpy as np
 
 from scipy.interpolate import piecewise_polynomial_interpolate as ppi
 
+import time
+
 
 ################################################################################
 #
@@ -94,7 +96,20 @@ def zmppoints2zmptraj(point, step_time, dt):
 
 
 
-def zmppoints2foottraj(point, step_time, ratio, step_height, dt, H_0_planeXY): #cdof, R0):
+def get_bounded_angles(p0, p1):
+    """
+    """
+    #WARNING: do this trick to get the shortest path:
+    a0, a1 = (p0[2])%(2*np.pi), (p1[2])%(2*np.pi)
+    diff = abs(a1 - a0)
+    if   abs(a1+2*np.pi - a0) <diff:
+        a1 += 2*np.pi
+    elif abs(a1-2*np.pi - a0) <diff:
+        a1 -= 2*np.pi
+    return a0, a1
+
+
+def zmppoints2foottraj(points, step_time, ratio, step_height, dt, H_0_planeXY): #cdof, R0):
     """Compute the trajectory of the feet.
 
     :param point: the list of the feet location
@@ -107,16 +122,6 @@ def zmppoints2foottraj(point, step_time, ratio, step_height, dt, H_0_planeXY): #
     :return: a list with all step trajectories [(pos_i, vel_i, acc_i)]
 
     """
-    def get_bounded_angles(p0, p1):
-        #WARNING: do this trick to get the shortest path:
-        a0, a1 = (p0[2])%(2*np.pi), (p1[2])%(2*np.pi)
-        diff = abs(a1 - a0)
-        if   abs(a1+2*np.pi - a0) <diff:
-            a1 += 2*np.pi
-        elif abs(a1-2*np.pi - a0) <diff:
-            a1 -= 2*np.pi
-        return a0, a1
-
     foot_traj = []
 
     Adj_0_planeXY = lgsm.Displacement(lgsm.vector(0,0,0), H_0_planeXY.getRotation()).adjoint()
@@ -126,12 +131,12 @@ def zmppoints2foottraj(point, step_time, ratio, step_height, dt, H_0_planeXY): #
     xout  = np.arange(0, step_time*ratio+dt, dt)
     yin_Z = [[0, 0, 0], [step_height, 0], [0, 0, 0]]
 
-    for i in np.arange(len(point)-2):
+    for i in np.arange(len(points)-2):
         
-        a_start, a_end = get_bounded_angles(point[i], point[i+2])
-        yin_X = [[point[i][0], 0, 0], [point[i+2][0], 0, 0]]
-        yin_Y = [[point[i][1], 0, 0], [point[i+2][1], 0, 0]]
-        yin_A = [[a_start,     0, 0], [a_end,         0, 0]]
+        a_start, a_end = get_bounded_angles(points[i], points[i+2])
+        yin_X = [[points[i][0], 0, 0], [points[i+2][0], 0, 0]]
+        yin_Y = [[points[i][1], 0, 0], [points[i+2][1], 0, 0]]
+        yin_A = [[a_start,      0, 0], [a_end,          0, 0]]
 
         res_X = (ppi(xin  , yin_X, xout), ppi(xin  , yin_X, xout, der=1), ppi(xin  , yin_X, xout, der=2))
         res_Y = (ppi(xin  , yin_Y, xout), ppi(xin  , yin_Y, xout, der=1), ppi(xin  , yin_Y, xout, der=2))
@@ -153,7 +158,32 @@ def zmppoints2foottraj(point, step_time, ratio, step_height, dt, H_0_planeXY): #
     return foot_traj
 
 
+def zmppoints2waisttraj(points, step_time, dt, H_0_planeXY):
+    """
+    """
+    waist_traj = []
+    
+    Adj_0_planeXY = lgsm.Displacement(lgsm.vector(0,0,0), H_0_planeXY.getRotation()).adjoint()
+    
+    xin   = [0, step_time]
+    xout  = np.arange(0, step_time+dt, dt)
+    
+    for i in np.arange(len(points)-1):
+    
+        a_start, a_end = get_bounded_angles(points[i], points[i+1])
+        yin_A = [[a_start, 0, 0], [a_end, 0, 0]]
 
+        res_A = (ppi(xin  , yin_A, xout), ppi(xin  , yin_A, xout, der=1), ppi(xin  , yin_A, xout, der=2))
+        
+        for j in np.arange(len(xout)):
+
+            pos_j = lgsm.Displacement(lgsm.zeros(3), lgsm.Quaternion(np.cos(res_A[0][j]/2.), 0, 0, np.sin(res_A[0][j]/2.) ))
+            vel_j = lgsm.Twist( lgsm.vector(0, 0, res_A[1][j], 0,0,0) )
+            acc_j = lgsm.Twist( lgsm.vector(0, 0, res_A[2][j], 0,0,0) )
+
+            waist_traj.append( (H_0_planeXY * pos_j, Adj_0_planeXY * vel_j, Adj_0_planeXY * acc_j) )
+
+    return waist_traj
 
 ################################################################################
 ################################################################################
@@ -163,7 +193,7 @@ from core import ISIRTaskController
 class FootTrajController(ISIRTaskController):
     """
     """
-    def __init__(self, lf_ctrl, rf_ctrl, lf_contacts, rf_contacts, ftraj, step_time, step_ratio, dt, start_foot, contact_as_objective):
+    def __init__(self, lf_ctrl, rf_ctrl, lf_contacts, rf_contacts, ftraj, step_time, step_ratio, dt, start_foot, contact_as_objective, verbose=False):
         """
         """
         self.lf_ctrl     = lf_ctrl
@@ -172,6 +202,7 @@ class FootTrajController(ISIRTaskController):
         self.rf_contacts = rf_contacts
         
         self.contact_as_objective = contact_as_objective
+        self.verbose              = verbose
 
         self.foot_traj  = ftraj
         self.step_time  = step_time
@@ -183,6 +214,10 @@ class FootTrajController(ISIRTaskController):
         self.ratio_time   = self.step_time*(1 - self.step_ratio)/2.
         self.num_step     = 0
         self.current_foot = 'left' if start_foot=='right' else 'right' #inverse because first foot is not start foot
+
+        self.status_is_walking           = True     # when initialized, it starts to walk
+        self.status_is_on_double_support = True
+        self.status_is_on_simple_support = False
 
 
     def update(self, tick):
@@ -201,10 +236,16 @@ class FootTrajController(ISIRTaskController):
                 print "reactivate contact of FOOT", self.current_foot
                 self.stop_current_foot_trajectory()
 
+        else:
+            self.status_is_walking = False
+
 
     def stop_current_foot_trajectory(self):
         """
         """
+        self.status_is_on_double_support = True
+        self.status_is_on_simple_support = False
+
         if   self.current_foot == 'left' :
             contacts = self.lf_contacts
 
@@ -222,6 +263,9 @@ class FootTrajController(ISIRTaskController):
     def start_next_foot_trajectory(self):
         """
         """
+        self.status_is_on_double_support = False
+        self.status_is_on_simple_support = self.current_foot
+
         self.current_foot = 'left' if self.current_foot=='right' else 'right'
         
         if self.num_step < len(self.foot_traj):
@@ -241,6 +285,22 @@ class FootTrajController(ISIRTaskController):
         self.num_step += 1
 
 
+    def is_walking(self):
+        """
+        """
+        return self.status_is_walking
+
+    def is_on_double_support(self):
+        """
+        """
+        return self.status_is_on_double_support
+
+    def is_on_simple_support(self):
+        """
+        """
+        return self.status_is_on_simple_support
+
+
 
 ################################################################################
 ################################################################################
@@ -248,7 +308,7 @@ class FootTrajController(ISIRTaskController):
 class WalkingTask(object):
     """
     """
-    def __init__(self, ctrl, dt, H_0_planeXY, lfoot_name, H_lfoot_sole, lf_contacts, rfoot_name, H_rfoot_sole, rf_contacts, com_dofs="XY", weight=1.0, contact_as_objective=False, prefix="walking."):
+    def __init__(self, ctrl, dt, lfoot_name, H_lfoot_sole, lf_contacts, rfoot_name, H_rfoot_sole, rf_contacts, waist_name, H_waist_front, waist_position, H_0_planeXY=None, horizontal_dofs="XY", vertical_dof="Z", weight=1.0, contact_as_objective=False, prefix="walking."):
         """
         """
         self.ctrl = ctrl
@@ -256,36 +316,108 @@ class WalkingTask(object):
 
         self.dt = dt
 
+        if H_0_planeXY is None:
+            H_0_planeXY = lgsm.Displacement()
         self.H_0_planeXY = H_0_planeXY
         self.H_planeXY_0 = H_0_planeXY.inverse()
 
         self.lfoot_index    = self.dm.getSegmentIndex(lfoot_name)
         self.rfoot_index    = self.dm.getSegmentIndex(rfoot_name)
+        self.waist_index    = self.dm.getSegmentIndex(waist_name)
         self.H_lfoot_sole   = H_lfoot_sole
         self.H_rfoot_sole   = H_rfoot_sole
+        self.H_waist_front  = H_waist_front
         self.lfoot_contacts = lf_contacts
         self.rfoot_contacts = rf_contacts
 
         self.contact_as_objective = contact_as_objective
 
-        self.com_task   = ctrl.createCoMTask(prefix+"com", com_dofs, weight, kp=0.) #, kd=0.
-        
         H_0_lfs = self.dm.getSegmentPosition(self.lfoot_index) * self.H_lfoot_sole
         H_0_rfs = self.dm.getSegmentPosition(self.rfoot_index) * self.H_rfoot_sole
         self.lfoot_task = ctrl.createFrameTask(prefix+"left_foot" , lfoot_name, H_lfoot_sole, "RXYZ", weight, kp=150., kd=None, pos_des=H_0_lfs)
         self.rfoot_task = ctrl.createFrameTask(prefix+"right_foot", rfoot_name, H_rfoot_sole, "RXYZ", weight, kp=150., kd=None, pos_des=H_0_rfs)
+        self.com_task   = ctrl.createCoMTask(  prefix+"com", horizontal_dofs, weight, kp=0.) #, kd=0.
+
+        self.waist_rot_task = ctrl.createFrameTask(prefix+"waist_rotation", waist_name, H_waist_front, "R"         , weight, kp=9., pos_des=waist_position)
+        self.waist_alt_task = ctrl.createFrameTask(prefix+"waist_altitude", waist_name, H_waist_front, vertical_dof, weight, kp=9., pos_des=waist_position)
 
         self.com_ctrl   = None
         self.feet_ctrl  = None
         self.lfoot_ctrl = task_controller.TrajectoryTracking(self.lfoot_task, [])
         self.rfoot_ctrl = task_controller.TrajectoryTracking(self.rfoot_task, [])
+        self.waist_rot_ctrl = task_controller.TrajectoryTracking(self.waist_rot_task, [])
+        self.waist_alt_ctrl = task_controller.TrajectoryTracking(self.waist_alt_task, [])
 
         self.ctrl.task_updater.register( self.lfoot_ctrl )
         self.ctrl.task_updater.register( self.rfoot_ctrl )
+        self.ctrl.task_updater.register( self.waist_rot_ctrl )
+        self.ctrl.task_updater.register( self.waist_alt_ctrl )
 
         self.set_zmp_control_parameters()
         self.set_step_parameters()
 
+
+    def is_balancing(self):
+        """
+        """
+        if self.com_ctrl is None:
+            return False
+        else:
+            return True
+
+    def is_walking(self):
+        """
+        """
+        if self.feet_ctrl is None:
+            return False
+        else:
+            return self.feet_ctrl.is_walking()
+
+    def is_on_double_support(self):
+        """
+        """
+        if self.feet_ctrl is None:
+            return True # assume that if no feet control, then it is on double support
+        else:
+            return self.feet_ctrl.is_on_double_support()
+
+    def is_on_simple_support(self):
+        """
+        """
+        if self.feet_ctrl is None:
+            return False
+        else:
+            return self.feet_ctrl.is_on_simple_support()
+
+    def setTasksWeight(self, weight):
+        """
+        """
+        for t in [self.lfoot_task, self.rfoot_task, self.com_task]:
+            t.setWeight(weight)
+
+    def get_waist_rotation_task(self):
+        """
+        """
+        return self.waist_rot_task
+
+    def get_waist_altitude_task(self):
+        """
+        """
+        return self.waist_alt_task
+
+    def set_waist_altitude(self, altitude):
+        """
+        """
+        if isinstance(altitude, lgsm.Displacement):
+            altitude = [[altitude]]
+        self.waist_alt_ctrl.set_new_trajectory( altitude )
+
+    def set_waist_orientation(self, orientation):
+        """
+        """
+        if isinstance(orientation, lgsm.Displacement):
+            orientation = [[orientation]]
+        self.waist_rot_ctrl.set_new_trajectory( orientation )
 
     def set_zmp_control_parameters(self, QonR=1e-6, horizon=1.6, stride=3, gravity=9.81):
         """
@@ -328,24 +460,25 @@ class WalkingTask(object):
         """
         """
         H_XY_pos = self.H_planeXY_0 * H_0_pos
-        R = H_XY_pos.getRotation()
+        R        = H_XY_pos.getRotation()
         angle    = 2. * np.arctan2( R.z, R.w )
         return np.array( [H_XY_pos.x, H_XY_pos.y, angle] )
 
 
-    def stayIdle(self):
+    def stayIdle(self, com_position=None):
         """
         """
-        mid_feet = self.get_center_of_feet_in_XY()
+        if com_position is None:
+            com_position = self.get_center_of_feet_in_XY()
 
         if self.com_ctrl is not None:
             self.ctrl.task_updater.remove( self.com_ctrl )
 
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, [mid_feet], QonR=self.QonR, horizon=self.horizon, dt=self.dt, H_0_planeXY=self.H_0_planeXY, stride=self.stride, gravity=self.gravity)
+        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, [com_position], self.QonR, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity)
         self.ctrl.task_updater.register( self.com_ctrl )
 
 
-    def goTo(self, pos_in_XY, angle=None, search_path_tolerance=1e-2):
+    def goTo(self, pos_in_XY, angle=None, search_path_tolerance=1e-2, verbose=True):
         """
         """
         start = self.get_center_of_feet_in_XY()
@@ -358,11 +491,61 @@ class WalkingTask(object):
         N = int(path_length/search_path_tolerance)
         traj = np.array([np.linspace(start[0], end[0], N), np.linspace(start[1], end[1], N), angle*np.ones(N)]).T
 
+        self.followTrajectory(traj, verbose=True)
+
+
+    def followTrajectory(self, trajectory, verbose=True):
+        """
+        """
         l_start, r_start = self.get_lfoot_pose_in_XY(), self.get_rfoot_pose_in_XY()
 
-        points  = traj2zmppoints(traj, self.length, self.side, l_start, r_start, self.start_foot)
+        points  = traj2zmppoints(trajectory, self.length, self.side, l_start, r_start, self.start_foot)
         zmp_ref = zmppoints2zmptraj(points, self.step_time, self.dt)
         ftraj   = zmppoints2foottraj(points, self.step_time, self.ratio, self.height, self.dt, self.H_0_planeXY)
+        wtraj   = zmppoints2waisttraj(points, self.step_time, self.dt, self.H_0_planeXY)
+
+        if self.com_ctrl is not None:
+            self.ctrl.task_updater.remove( self.com_ctrl )
+        if self.feet_ctrl is not None:
+            self.ctrl.task_updater.remove( self.feet_ctrl )
+
+        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, self.QonR, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity)
+        self.ctrl.task_updater.register( self.com_ctrl )
+
+        self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective, verbose)
+        self.ctrl.task_updater.register( self.feet_ctrl )
+
+        self.waist_rot_ctrl.set_new_trajectory( wtraj )
+
+        return zmp_ref
+
+
+    def moveOneFoot(self, start_foot, length, side_length, angle=None):
+        """
+        """
+        l_start      = self.get_lfoot_pose_in_XY()
+        r_start      = self.get_rfoot_pose_in_XY()
+        central_pose = (l_start + r_start )/2.
+        angle_start  = central_pose[2]
+        
+        forward_direction = np.array( [ np.cos(angle_start), np.sin(angle_start) ] )
+        left_direction    = np.array( [-np.sin(angle_start), np.cos(angle_start) ] )
+        
+        if angle is None:
+            angle = angle_start
+
+        if start_foot == 'left':
+            lpose = length*forward_direction + side_length*left_direction
+            points = [l_start, r_start, (lpose[0], lpose[1], angle)]
+        elif start_foot == 'right':
+            rpose = length*forward_direction - side_length*left_direction # minus because it is right foot
+            points = [r_start, l_start, (rpose[0], rpose[1], angle)]
+        else:
+            raise ValueError
+
+        zmp_ref = zmppoints2zmptraj(points, self.step_time, self.dt)
+        ftraj   = zmppoints2foottraj(points, self.step_time, self.ratio, self.height, self.dt, self.H_0_planeXY)
+        wtraj   = zmppoints2waisttraj(points, self.step_time, self.dt, self.H_0_planeXY)
 
         if self.com_ctrl is not None:
             self.ctrl.task_updater.remove( self.com_ctrl )
@@ -375,8 +558,26 @@ class WalkingTask(object):
         self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective)
         self.ctrl.task_updater.register( self.feet_ctrl )
 
+        self.waist_rot_ctrl.set_new_trajectory( wtraj )
+
         return zmp_ref
 
+
+    def wait_for_end_of_walking(self, period=1e-3):
+        """
+        """
+        while 1:
+            if not self.is_walking():
+                break
+            time.sleep(period)
+
+    def wait_for_double_support(self, period=1e-3):
+        """
+        """
+        while 1:
+            if self.is_on_double_support():
+                break
+            time.sleep(period)
 
 
 
