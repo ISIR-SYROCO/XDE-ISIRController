@@ -478,11 +478,15 @@ class WalkingTask(object):
         self.ctrl.task_updater.register( self.com_ctrl )
 
 
-    def goTo(self, pos_in_XY, angle=None, search_path_tolerance=1e-2, verbose=True):
+    def goTo(self, pos_in_XY, relative_pos=False, angle=None, search_path_tolerance=1e-2, verbose=True):
         """
         """
         start = self.get_center_of_feet_in_XY()
+
         end   = np.asarray(pos_in_XY)
+        if relative_pos is True:
+            end += start
+
         direction_vector = (end - start)
         path_length = np.linalg.norm(direction_vector)
         if angle is None:

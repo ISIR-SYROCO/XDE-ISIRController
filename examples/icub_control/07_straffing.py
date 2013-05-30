@@ -101,7 +101,7 @@ H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034), RotRZdown )
 walkingTask = xic.walk.WalkingTask( ctrl, dt, 
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
-                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.58),
+                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56),
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=False)
 
 walkingTask.set_zmp_control_parameters(QonR=1e-6, horizon=1.6, stride=3, gravity=9.81)

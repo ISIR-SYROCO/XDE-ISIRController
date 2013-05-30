@@ -50,10 +50,9 @@ dynModel.setJointPositions(qinit)
 robot.setJointVelocities(lgsm.zeros(N))
 dynModel.setJointVelocities(lgsm.zeros(N))
 
-
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "qld", False)
+ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog", False)
 
 ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)

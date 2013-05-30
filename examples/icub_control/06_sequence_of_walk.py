@@ -63,7 +63,7 @@ ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dyn
 
 ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)
-ctrl.enableJointLimits(True)
+ctrl.enableJointLimits(False)
 
 ##### SET TASKS
 N0 = 6 if fixed_base is False else 0

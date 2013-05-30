@@ -29,16 +29,17 @@ class ISIRCtrl(dsimi.rtt.Task):
     """ Proxy of orcisir_ISIRController.
     """
 
-    def __init__(self, libdir, dynamic_model, robotName, physic_agent, sync_connector=None, solver="quadprog", useReducedProblem=False):
+    def __init__(self, libdir, dynamic_model, robot_name, physic_agent, sync_connector=None, solver="quadprog", reduced_problem=False, multi_level=False):
         """ Instantiate proxy of controller.
         
         :param libdir: path string where one can find the lib 'orcisir_Orocos_IsirController-gnulinux'
         :param dynamic_model: xde.DynamicModel instance built based on the controlled robot
-        :param robotState_prefix: the prefix string given to the OConnectorRobotState linked with the robot
-        :param robotJointTorque_prefix: the prefix string given to the IConnectorRobotJointTorque linked with the robot
+        :param robot_name: the name given to the robot in the GVM.Robot instance.
+        :param physic_agent: the physic agent which can the link the robot to the controller through the IConnectorRobotJointTorque & OConnectorRobotState.
         :param sync_connector: the synchronisation connector when this is required (in the WorldManager package, it is WorldManager.icsync)
         :param solver: a string to choose the internal solve; for now "quadprog" or "qld"
-        :param useReducedProblem: whether on want to solve the problem in [ddq, torque, fc] (True) or [torque, fc] (False)
+        :param reduced_problem: whether one want to solve the problem in [ddq, torque, fc] (True) or [torque, fc] (False)
+        :param multi_level: whether one want to solve multi level problem. Thus, it enables setLevel method for tasks.
         """
         orocos_ICTask = ddeployer.load("oIT", "Orocos_ISIRController",
                                        module="orcisir_Orocos_IsirController-gnulinux", prefix="",
@@ -47,16 +48,16 @@ class ISIRCtrl(dsimi.rtt.Task):
         
         # set dynamic model and init inner solver
         self.dynamic_model = dynamic_model
-        self.s.setDynModelPointerStr(str(self.dynamic_model.this.__long__()), solver, useReducedProblem)
+        self.s.setDynModelPointerStr(str(self.dynamic_model.this.__long__()), solver, reduced_problem, multi_level)
         
         self.NDOF0 = 6
         if self.dynamic_model.hasFixedRoot():
             self.NDOF0 = 0
 
         # create connector in the physical agent: out.connector for robot state, and in.connector for tau
-        robotPrefix = robotName+"_"
-        physic_agent.s.Connectors.IConnectorRobotJointTorque.new(robotName+".ict", robotPrefix, robotName)
-        physic_agent.s.Connectors.OConnectorRobotState.new(robotName+".ocpos", robotPrefix, robotName)
+        robotPrefix = robot_name+"_"
+        physic_agent.s.Connectors.IConnectorRobotJointTorque.new(robot_name+".ic_torque", robotPrefix, robot_name)
+        physic_agent.s.Connectors.OConnectorRobotState.new(robot_name+".oc_state", robotPrefix, robot_name)
 
         # set connection from physic to controller
         physic_agent.getPort(robotPrefix+"q").connectTo(self.getPort("q"))
@@ -124,22 +125,21 @@ class ISIRCtrl(dsimi.rtt.Task):
     ##################################
     # Methods to easily create tasks #
     ##################################
-    def createFullTask(self, name, weight=1., level=0, **kwargs):
+    def createFullTask(self, name, weight=1., **kwargs):
         """ Create a task that control the full state of the model.
         
         Generally, to set a reference posture of the robot.
         
         :param name: the unique nOut[12]: <rtt_interface.TypeInfo; proxy of <Swig Object of typame (id) of the task
         :param weight: the task weight for control trade-off when some tasks are conflicting
-        :param level: the task priority for solver; low-leveled task are resolved first
         :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createFullTask(name)
-        return ISIRTask(self, name, index, ISIRTask.FULLTASK, weight, level, **kwargs)
+        return ISIRTask(self, name, index, ISIRTask.FULLTASK, weight, **kwargs)
 
-    def createPartialTask(self, name, dofs, weight=1., level=0, **kwargs):
+    def createPartialTask(self, name, dofs, weight=1., **kwargs):
         """ Create a task that control some state of the model.
         
         Generally, to control a particular subset of the robot, e.g. the arm, the leg, the spine...
@@ -149,7 +149,6 @@ class ISIRCtrl(dsimi.rtt.Task):
                      Note that if you use a list of int, you must shift the segment indexes by 6 when the robot has a free flying root.
                      It also means that the free floating pose can be controlled.
         :param weight: the task weight for control trade-off when some tasks are conflicting
-        :param level: the task priority for solver; low-leveled task are resolved first
         :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
@@ -163,9 +162,9 @@ class ISIRCtrl(dsimi.rtt.Task):
                 dofs_index.append(self.NDOF0 + d_idx)
 
         index = self.s.createPartialTask(name, dofs_index)
-        return ISIRTask(self, name, index, ISIRTask.PARTIALTASK, weight, level, **kwargs)
+        return ISIRTask(self, name, index, ISIRTask.PARTIALTASK, weight, **kwargs)
 
-    def createFrameTask(self, name, segmentName, H_segment_frame, dofs, weight=1., level=0, **kwargs):
+    def createFrameTask(self, name, segmentName, H_segment_frame, dofs, weight=1., **kwargs):
         """ Create a task that control a frame of the model.
         
         Generally to track a pose or a trajectory in the cartesian space.
@@ -176,15 +175,14 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param dofs: a string representing the controlled part of the frame, e.g. the rotation or the X & Y axis.
                      dofs is the combination of the following character (in this order): 'R', 'X', 'Y', 'Z'
         :param weight: the task weight for control trade-off when some tasks are conflicting
-        :param level: the task priority for solver; low-leveled task are resolved first
         :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createFrameTask(name, segmentName, lgsm.Displacement(H_segment_frame), dofs.upper())
-        return ISIRTask(self, name, index, ISIRTask.FRAMETASK, weight, level, **kwargs)
+        return ISIRTask(self, name, index, ISIRTask.FRAMETASK, weight, **kwargs)
 
-    def createCoMTask(self, name, dofs, weight=1., level=0, **kwargs):
+    def createCoMTask(self, name, dofs, weight=1., **kwargs):
         """ Create a task that control the Center of Mass (CoM) of the model.
         
         Generally associated to any balancing control, walking, static equilibrium etc...
@@ -193,15 +191,14 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param dofs: a string representing the controlled part of the CoM (here rotation control is meaningless)
                      it is the combination of the following character (in this order): 'X', 'Y', 'Z'
         :param weight: the task weight for control trade-off when some tasks are conflicting
-        :param level: the task priority for solver; low-leveled task are resolved first
         :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createCoMTask(name, dofs.upper())
-        return ISIRTask(self, name, index, ISIRTask.COMTASK, weight, level, **kwargs)
+        return ISIRTask(self, name, index, ISIRTask.COMTASK, weight, **kwargs)
 
-    def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., level=0, **kwargs):
+    def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., **kwargs):
         """ Create a task for frictional interaction with the environment.
         
         :param name: the unique name (id) of the task
@@ -210,13 +207,12 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param mu: the Coulomb coefficient of friction
         :param margin: margin associated to the friction cone constraint. Positive margin means a thiner cone.
         :param weight: the task weight for control trade-off when some tasks are conflicting
-        :param level: the task priority for solver; low-leveled task are resolved first
         :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
         """
         index = self.s.createContactTask(name, segmentName, lgsm.Displacement(H_segment_frame), mu, margin)
-        return ISIRTask(self, name, index, ISIRTask.CONTACTTASK, weight, level, **kwargs)
+        return ISIRTask(self, name, index, ISIRTask.CONTACTTASK, weight, **kwargs)
 
 
 
@@ -277,7 +273,7 @@ class ISIRTask(object):
     COMTASK     = "CoMTask"
     CONTACTTASK = "contactTask"
     
-    def __init__(self, ctrl, name, index, taskType, weight=1., level=0, **kwargs):
+    def __init__(self, ctrl, name, index, taskType, weight=1., **kwargs):
         """ Instantiate a proxy of an ISIRTask.
         
         Warning: when creating this proxy the task must have been registred by the controller before.
@@ -287,20 +283,18 @@ class ISIRTask(object):
         :param taskType: the ISIRTask.TYPE of the task, which can be one of the following:
                          FULLTASK, PARTIALTASK, FRAMETASK, COMTASK, CONTACTTASK
         :param weight: the task weight for control trade-off when some tasks are conflicting
-        :param level: the task priority for solver; low-leveled task are resolved first
         
         :param kwargs: some keyword arguments can be pass to quickly initialize task parameters.
-                       these arguments can be any of: kp, kd, pos_des, vel_des, acc_des.
+                       these arguments can be any of: level, kp, kd, pos_des, vel_des, acc_des.
         """
         self.ctrl     = ctrl
         self.name     = name
         self.index    = index
         self.taskType = taskType
         
-        print "TASK", name, ":", index
+        print "init TASK", name, ":", index
         
         self.setWeight(weight)
-        self.setLevel(level)
         
         self.dimension = self.ctrl.s.getTaskDimension(self.index)
         
@@ -329,6 +323,9 @@ class ISIRTask(object):
             self.null_vel_des       = lgsm.Twist()
 
         #treat kwargs arguments
+        if ("level" in kwargs):
+            self.setLevel(kwargs["level"])
+
         if ("kp" in kwargs) or ("kd" in kwargs):
             kp = kwargs["kp"] if "kp" in kwargs else 0.
             kd = kwargs["kd"] if "kd" in kwargs else None
