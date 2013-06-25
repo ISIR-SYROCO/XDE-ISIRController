@@ -59,16 +59,14 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "qld", False)
+ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
 ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)
 ctrl.enableJointLimits(False)
 
 ##### SET TASKS
-N0 = 6 if fixed_base is False else 0
-
-partialTask = ctrl.createPartialTask("partial", range(N0, N+N0), 0.0001, kp=9., pos_des=qinit)
+fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
 
 #waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 10.0, kp=25., pos_des=lgsm.Displacement(0,0,.58,0,0,0,1))
 
@@ -91,8 +89,8 @@ for y in [-.027, .027]:
         r_contacts.append(ct)
         i+=1
 
-for c in l_contacts + r_contacts:
-    c.activateAsConstraint()
+#for c in l_contacts + r_contacts:
+#    c.activateAsConstraint()
 #    c.setWeight(10.)
 
 
@@ -105,7 +103,7 @@ walkingTask = xic.walk.WalkingTask( ctrl, dt,
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
                                     rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.58),
-                                    H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=False)
+                                    H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
 
 walkingTask.stayIdle()
 

@@ -57,9 +57,11 @@ ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dyn
 
 
 ##### SET TASKS
-N0 = 6 if fixed_base is False else 0
-
-partialTask = ctrl.createPartialTask("partial", range(N0, N+N0), 0.0001, kp=9., pos_des=qinit)
+# this ...
+#N0 = 6 if fixed_base is False else 0
+#partialTask = ctrl.createPartialTask("partial", range(N0, N+N0), 0.0001, kp=9., pos_des=qinit)
+# ... is equivalent to that ("INTERNAL" can be omitted):
+fullTask = ctrl.createFullTask("full", 0.0001, "INTERNAL", kp=9., pos_des=qinit)
 
 waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RXYZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58))
 

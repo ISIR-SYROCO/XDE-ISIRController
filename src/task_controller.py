@@ -1,6 +1,6 @@
 #!/xde
 
-"""
+""" TODO: this module should become C++ code, especially for the ZMP controller, to become more efficient.
 """
 
 from core import ISIRTaskController

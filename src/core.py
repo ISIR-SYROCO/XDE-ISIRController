@@ -125,18 +125,28 @@ class ISIRCtrl(dsimi.rtt.Task):
     ##################################
     # Methods to easily create tasks #
     ##################################
-    def createFullTask(self, name, weight=1., **kwargs):
+    def createFullTask(self, name, weight=1., whichPart="INTERNAL", **kwargs):
         """ Create a task that control the full state of the model.
         
         Generally, to set a reference posture of the robot.
         
-        :param name: the unique nOut[12]: <rtt_interface.TypeInfo; proxy of <Swig Object of typame (id) of the task
+        :param name: the unique name (id) of the task
         :param weight: the task weight for control trade-off when some tasks are conflicting
+        :param whichPart: tell what to control, see below
         :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
         
         :rtype: a ISIRTask instance which give access to the task methods and bypass the controller
+        
+        A full task can control different parts of the robot which are:
+
+        * "INTERNAL"   -> internal joints of the robot
+        * "FREE_FLYER" -> the free flying pose of the robot (6 dofs) if any; the desired position is then
+                          a lgsm.vector (dim=6) representing the 3 positions (x,y,z) and the 3 components
+                          of the quaternion axis (wx, wy, wz) (the imaginary part). #TODO: check if this is the good representation
+        * "FULL_STATE" -> control the free flying dofs and internal joints of the robot.
+                          if the robot has a fixed base, "INTERNAL" and "FULL_STATE" are equivalent
         """
-        index = self.s.createFullTask(name)
+        index = self.s.createFullTask(name, whichPart)
         return ISIRTask(self, name, index, ISIRTask.FULLTASK, weight, **kwargs)
 
     def createPartialTask(self, name, dofs, weight=1., **kwargs):
