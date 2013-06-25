@@ -123,7 +123,7 @@ print "END OF WALKING TASK"
 wm.stopAgents()
 ctrl.s.stop()
 
-
+ctrl.writePerformancesInFile("performances.json")
 
 ##### RESULTS
 zmplipmpobs.s.stop()

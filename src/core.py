@@ -18,7 +18,7 @@ import rtt_interface
 
 import lgsm
 
-
+import json
 
 
 
@@ -262,6 +262,16 @@ class ISIRCtrl(dsimi.rtt.Task):
         """ Enable/disable the contact avoidance constraint. """
         self.s.enableContactAvoidance(enabled)
 
+    ################################
+    # Get performances information #
+    ################################
+    def getPerformances(self):
+        """ Get performances from the controller in a JSON style. """
+        return json.loads(self.s.getPerformances())
+
+    def writePerformancesInFile(self, fileName):
+        """ Write performances from the controller in a JSON file. """
+        self.s.writePerformancesInFile(fileName)
 
 
 
