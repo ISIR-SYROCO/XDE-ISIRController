@@ -53,7 +53,7 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
 ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)
@@ -97,7 +97,8 @@ walkingTask = xic.walk.WalkingTask( ctrl, dt,
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
                                     rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.58),
-                                    H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
+                                    H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True,
+                                    height_ref=0.58, updatePxPu=1e-3, use_swig_zmpy=True)
 
 #walkingTask.stayIdle()
 

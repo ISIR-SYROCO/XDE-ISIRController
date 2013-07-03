@@ -102,7 +102,7 @@ walkingTask = xic.walk.WalkingTask( ctrl, dt,
                                     rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56),
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
 
-walkingTask.set_zmp_control_parameters(QonR=1e-6, horizon=1.6, stride=3, gravity=9.81)
+walkingTask.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81)
 
 walkingTask.stayIdle()
 

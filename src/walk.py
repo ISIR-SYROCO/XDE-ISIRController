@@ -308,7 +308,7 @@ class FootTrajController(ISIRTaskController):
 class WalkingTask(object):
     """
     """
-    def __init__(self, ctrl, dt, lfoot_name, H_lfoot_sole, lf_contacts, rfoot_name, H_rfoot_sole, rf_contacts, waist_name, H_waist_front, waist_position, H_0_planeXY=None, horizontal_dofs="XY", vertical_dof="Z", weight=1.0, contact_as_objective=False, prefix="walking."):
+    def __init__(self, ctrl, dt, lfoot_name, H_lfoot_sole, lf_contacts, rfoot_name, H_rfoot_sole, rf_contacts, waist_name, H_waist_front, waist_position, H_0_planeXY=None, horizontal_dofs="XY", vertical_dof="Z", weight=1.0, contact_as_objective=False, prefix="walking.", height_ref=0.0, updatePxPu=True, use_swig_zmpy=True):
         """
         """
         self.ctrl = ctrl
@@ -329,6 +329,10 @@ class WalkingTask(object):
         self.H_waist_front  = H_waist_front
         self.lfoot_contacts = lf_contacts
         self.rfoot_contacts = rf_contacts
+        
+        self.height_ref    = height_ref
+        self.updatePxPu    = updatePxPu
+        self.use_swig_zmpy = use_swig_zmpy
 
         self.contact_as_objective = contact_as_objective
 
@@ -419,10 +423,10 @@ class WalkingTask(object):
             orientation = [[orientation]]
         self.waist_rot_ctrl.set_new_trajectory( orientation )
 
-    def set_zmp_control_parameters(self, QonR=1e-6, horizon=1.6, stride=3, gravity=9.81):
+    def set_zmp_control_parameters(self, RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81):
         """
         """
-        self.QonR    = QonR
+        self.RonQ    = RonQ
         self.horizon = horizon
         self.stride  = stride
         self.gravity = gravity
@@ -474,7 +478,7 @@ class WalkingTask(object):
         if self.com_ctrl is not None:
             self.ctrl.task_updater.remove( self.com_ctrl )
 
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, [com_position], self.QonR, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity)
+        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, [com_position], self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
         self.ctrl.task_updater.register( self.com_ctrl )
 
 
@@ -513,7 +517,7 @@ class WalkingTask(object):
         if self.feet_ctrl is not None:
             self.ctrl.task_updater.remove( self.feet_ctrl )
 
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, self.QonR, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity)
+        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
         self.ctrl.task_updater.register( self.com_ctrl )
 
         self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective, verbose)
@@ -556,7 +560,7 @@ class WalkingTask(object):
         if self.feet_ctrl is not None:
             self.ctrl.task_updater.remove( self.feet_ctrl )
 
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, QonR=self.QonR, horizon=self.horizon, dt=self.dt, H_0_planeXY=self.H_0_planeXY, stride=self.stride, gravity=self.gravity)
+        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
         self.ctrl.task_updater.register( self.com_ctrl )
 
         self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective)
