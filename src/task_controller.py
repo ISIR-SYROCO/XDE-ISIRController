@@ -87,7 +87,7 @@ class ZMPController(ISIRTaskController):
         for i in np.arange(self._h):
             diag_i = (1 + 3*i + 3*i**2)*self._dt**3/6
             self._temp_Pu[np.arange(i, self._h), np.arange(self._h-i)] = diag_i
-        self._ltri_idx = np.tril_indices(self._h, -1)
+        self._ltri_idx = np.tril_indices(self._h, 0)
 
 
     def _get_com_hat_and_hong(self):
