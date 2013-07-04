@@ -96,15 +96,15 @@ RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
 H_lf_sole = lgsm.Displacement(lgsm.vector(-.039, 0, .034), RotLZdown )
 H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034), RotRZdown )
-walkingTask = xic.walk.WalkingTask( ctrl, dt, 
+walkingActivity = xic.walk.WalkingActivity( ctrl, dt, 
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
                                     rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56),
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
 
-walkingTask.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81)
+walkingActivity.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81)
 
-walkingTask.stayIdle()
+walkingActivity.stayIdle()
 
 
 ##### OBSERVERS
@@ -122,14 +122,14 @@ wm.phy.s.agent.triggerUpdate()
 #import dsimi.interactive
 #dsimi.interactive.shell()()
 time.sleep(0.)
-print "WALK .5m front"
+print "STRAFE .5m left"
 
 
-walkingTask.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
-zmp_ref = walkingTask.goTo([0., 0.5], angle=0)
+walkingActivity.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
+zmp_ref = walkingActivity.goTo([0., 0.5], angle=0)
 
 
-walkingTask.wait_for_end_of_walking()
+walkingActivity.wait_for_end_of_walking()
 time.sleep(.5)
 
 wm.stopAgents()

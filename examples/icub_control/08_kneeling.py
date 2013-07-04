@@ -99,14 +99,14 @@ RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
 H_lf_sole = lgsm.Displacement(lgsm.vector(-.039, 0, .034), RotLZdown )
 H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034), RotRZdown )
-walkingTask = xic.walk.WalkingTask( ctrl, dt, 
+walkingActivity = xic.walk.WalkingActivity( ctrl, dt, 
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
                                     rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56),
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
 
 
-walkingTask.stayIdle()
+walkingActivity.stayIdle()
 
 
 ##### OBSERVERS
@@ -125,14 +125,14 @@ wm.phy.s.agent.triggerUpdate()
 #dsimi.interactive.shell()()
 time.sleep(0.)
 
-walkingTask.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
-zmp_ref = walkingTask.moveOneFoot("left", .22, .05, angle=0)
+walkingActivity.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
+zmp_ref = walkingActivity.moveOneFoot("left", .22, .05, angle=0)
 
 
-walkingTask.wait_for_end_of_walking()
+walkingActivity.wait_for_end_of_walking()
 print "END OF STEP"
 
-walkingTask.set_waist_altitude(lgsm.Displacement(0,0,.45))
+walkingActivity.set_waist_altitude(lgsm.Displacement(0,0,.45))
 
 
 time.sleep(5.)

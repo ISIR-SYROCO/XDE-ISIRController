@@ -93,17 +93,17 @@ RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
 H_lf_sole = lgsm.Displacement(lgsm.vector(-.039, 0, .034), RotLZdown )
 H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034), RotRZdown )
-walkingTask = xic.walk.WalkingTask( ctrl, dt, 
+walkingActivity = xic.walk.WalkingActivity( ctrl, dt, 
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
                                     rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.58),
-                                    H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True,
-                                    height_ref=0.58, updatePxPu=1e-3, use_swig_zmpy=True)
+                                    H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
 
+walkingActivity.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81, height_ref=0.58, updatePxPu=1e-3, use_swig_zmpy=True)
 #walkingTask.stayIdle()
 
 
-zmp_ref = walkingTask.goTo([.5,0.])
+zmp_ref = walkingActivity.goTo([.5,0.])
 
 ##### OBSERVERS
 from observers import ZMPLIPMPositionObserver
@@ -118,7 +118,7 @@ wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
 
-walkingTask.wait_for_end_of_walking()
+walkingActivity.wait_for_end_of_walking()
 print "END OF WALKING TASK"
 
 wm.stopAgents()

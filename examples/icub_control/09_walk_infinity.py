@@ -88,7 +88,7 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
 ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)
@@ -128,18 +128,18 @@ RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
 H_lf_sole = lgsm.Displacement(lgsm.vector(-.039, 0, .034), RotLZdown )
 H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034), RotRZdown )
-walkingTask = xic.walk.WalkingTask( ctrl, dt, 
+walkingActivity = xic.walk.WalkingActivity( ctrl, dt, 
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
                                     rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.58),
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
 
-#walkingTask.stayIdle()
+#walkingActivity.stayIdle()
 
 
 
 inf_traj = get_infinity_traj(lgsm.vector(0.,0.), lgsm.vector(1,0))
-zmp_ref = walkingTask.followTrajectory(inf_traj)
+zmp_ref = walkingActivity.followTrajectory(inf_traj)
 
 ##### OBSERVERS
 from observers import ZMPLIPMPositionObserver
@@ -155,7 +155,7 @@ wm.phy.s.agent.triggerUpdate()
 
 
 
-walkingTask.wait_for_end_of_walking()
+walkingActivity.wait_for_end_of_walking()
 time.sleep(2.)
 
 
