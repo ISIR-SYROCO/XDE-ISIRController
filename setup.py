@@ -27,7 +27,7 @@ class develop(Command):
 	def finalize_options(self):
 		self.py_version = (string.split(sys.version))[0]
 		if self.prefix is None:
-		    self.prefix = USER_BASE
+			self.prefix = USER_BASE
 		self.prefix = os.path.expanduser(self.prefix)
 
 	def run(self):
@@ -50,13 +50,32 @@ class develop(Command):
 				print "Creating symlink "+src_dir+" -> "+out_dir
 				force_symlink(src_dir, out_dir)
 
+cmdclass={'develop': develop}
+try:
+	from sphinx.setup_command import BuildDoc
+	cmdclass['build_doc'] = BuildDoc
+	
+except ImportError:
+	pass
+
+
+if sys.argv[0] == "setup.py":
+	script_name=sys.argv[0]
+	script_args=sys.argv[1:]
+else:
+	script_name=sys.argv[1]
+	script_args=sys.argv[2:]
+
 
 setup(name='XDE-ISIRController',
-	  version='0.1',
-	  description='isir qp-based controller for xde',
-	  author='Soseph',
-	  author_email='hak@isir.upmc.fr',
-	  package_dir={'xde_isir_controller':'src'},
-	  packages=[package_name],
-	  cmdclass={'develop': develop}
-	 )
+		version='0.1',
+		description='isir qp-based controller for xde',
+		author='Soseph',
+		author_email='hak@isir.upmc.fr',
+		package_dir={'xde_isir_controller':'src'},
+		packages=[package_name],
+		cmdclass=cmdclass,
+	
+		script_name=script_name,
+		script_args= script_args,
+	)
