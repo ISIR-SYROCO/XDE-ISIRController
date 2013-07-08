@@ -21,20 +21,19 @@ import time
 ################################################################################
 
 def traj2zmppoints(comtraj, step_length, step_side, left_start, right_start, start_foot):
-    """ Generate a set of points to locate the feet position around a trajectory
-    of the Center of Mass.
+    """ Generate a set of points to locate the feet position around a trajectory of the Center of Mass.
 
-    :param comtraj: list of 3 parameters: [x_traj, y_traj, angular_traj]
-
-    :param step_length: the distance done with one step in meter
-    :param step_side: the distance between the feet and the CoM trajectory
-
-    :param left_start:  left foot pos  [x_pos, y_pos, angular_pos]
-    :param right_start: right foot pos [x_pos, y_pos, angular_pos]
-
+    :param comtraj: list of 3 trajectories ``[x_traj, y_traj, angular_traj]``
+    :type  comtraj: (N,3)-array
+    :param double step_length: the distance done with one step (in meter)
+    :param double step_side: the distance between the feet and the CoM trajectory
+    :param left_start: left foot pos ``[x_pos, y_pos, angular_pos]``
+    :type  left_start: (3,)-array
+    :param right_start: right foot pos ``[x_pos, y_pos, angular_pos]``
+    :type  right_start: (3,)-array
     :param string start_foot: 'left' or 'right'
 
-    :return: a list of points which represent the feet location on floor
+    :return: a list of points ``[(x1,y1,a1), ..., (xn,yn,an)]`` which represents the feet location on floor
 
     """
     left_start  = np.asarray(left_start)
@@ -73,22 +72,22 @@ def traj2zmppoints(comtraj, step_length, step_side, left_start, right_start, sta
 
 
 
-def zmppoints2zmptraj(point, step_time, dt):
+def zmppoints2zmptraj(points, step_time, dt):
     """ Get the Zero Moment Point trajectory from feet location.
 
-    :param list point: the list of the feet locations
+    :param list points: the list of the feet locations
     :param double step_time: the time between 2 foot steps
     :param double dt: time step of simulation
 
-    :return: the ZMP traj [x_traj, y_traj]
+    :return: a (N,2)-array for the ZMP trajectories ``[x_traj, y_traj]``
 
     """
     gab2 = np.ones((round(step_time/(dt*2.) ), 1))
     gab  = np.ones((round(step_time/dt),       1))
 
-    start = np.dot(gab2, point[0][0:2].reshape(1, 2))
-    mid   = [np.dot(gab, p[0:2].reshape(1, 2)) for p in point[1:-1]]
-    end   = (point[-2][0:2] + point[-1][0:2])/2.
+    start = np.dot(gab2, points[0][0:2].reshape(1, 2))
+    mid   = [np.dot(gab, p[0:2].reshape(1, 2)) for p in points[1:-1]]
+    end   = (points[-2][0:2] + points[-1][0:2])/2.
     traj  = np.vstack( [start]+mid+[end] )
 
     return traj
@@ -103,7 +102,7 @@ def get_bounded_angles(p0, p1):
     :param p1: The second point to test in the feet trajectory
     :type  p1: [x_p1, y_p1, a_p1]
 
-    :return: [a_p0', a_p1'] such as difference between them is minimal in [-2pi, 2pi]
+    :return: ``[a_p0', a_p1']`` such as difference between them is minimal in ``[-2pi, 2pi]``
 
     """
     #WARNING: do this trick to get the shortest path:
@@ -116,10 +115,10 @@ def get_bounded_angles(p0, p1):
     return a0, a1
 
 
-def zmppoints2foottraj(points, step_time, ratio, step_height, dt, H_0_planeXY): #cdof, R0):
+def zmppoints2foottraj(points, step_time, ratio, step_height, dt, H_0_planeXY):
     """ Compute the trajectory of the feet.
 
-    :param list point: the list of the feet locations
+    :param list points: the list of the feet locations
     :param double step_time: the time between 2 steps
     :param double ratio: ratio between single support phase time and complete cycle time
     :param double step_height: the max distance between the foot and the floor
@@ -127,7 +126,12 @@ def zmppoints2foottraj(points, step_time, ratio, step_height, dt, H_0_planeXY): 
     :param H_0_plane_XY: the transformation matrix from 0 to the floor
     :type  H_0_plane_XY: :class:`lgsm.Displacement`
 
-    :return: a list with all step trajectories [[(pos_i, vel_i, acc_i)]]
+    :return: a list of ``k`` step trajectories ``[ traj_step_0, ..., traj_step_k]`` with:
+            
+            * ``traj_step_i = [(pos_0, vel_0, acc_0), ..., (pos_n, vel_n, acc_n)]``
+            * ``pos_j``: :class:`lgsm.Displacement`
+            * ``vel_j``: :class:`lgsm.Twist`
+            * ``acc_j``: :class:`lgsm.Twist`
 
     """
     foot_traj = []
@@ -175,7 +179,11 @@ def zmppoints2waisttraj(points, step_time, dt, H_0_planeXY):
     :param H_0_plane_XY: the transformation matrix from 0 to the floor
     :type  H_0_plane_XY: :class:`lgsm.Displacement`
     
-    :return: a list with the whole waist trajectory [(pos_i, vel_i, acc_i)]
+    :return: a list with the whole waist trajectory ``[(pos_0, vel_0, acc_0), ..., (pos_n, vel_n, acc_n)]`` with:
+            
+            * ``pos_j``: :class:`lgsm.Displacement`
+            * ``vel_j``: :class:`lgsm.Twist`
+            * ``acc_j``: :class:`lgsm.Twist`
     """
     waist_traj = []
     
@@ -221,7 +229,7 @@ class FootTrajController(ISIRTaskController):
         :param double step_time: the time between 2 steps
         :param double step_ratio: ratio between single support phase time and complete cycle time
         :param double dt: time step of simulation
-        :param string start_foot: 'left'/'l' or 'right'/'r'
+        :param string start_foot: 'left' or 'right'
         :param bool contact_as_objective: Whether to consider contacts as objective (True) or constraint (False) when they are re-activated
         :param bool verbose: Whether to print information on FootTrajController evolution
 
@@ -255,8 +263,8 @@ class FootTrajController(ISIRTaskController):
 
         :param int tick: thre current physic agent iteration index (unused here)
 
-        Here, it looks if the current step is still in the sequence; if true,
-        it check the internal time (t) of the controller:
+        Here, it looks if the current step is still in the sequence; if True,
+        it checks the internal time (t) of the controller:
 
         * if (t) is lower than current step time + ratio_time, it activates next foot and start its motion by deactivating contact tasks
         * if (t) is greater than current step time - ratio_time, it deactivates current foot and reactivate contact tasks
@@ -286,6 +294,7 @@ class FootTrajController(ISIRTaskController):
 
         It reactivates the contact tasks related to the corresponding foot.
         They are considered as either objectives or constraints, depending on argument in constructor.
+        
         """
         self.status_is_on_double_support = True
         self.status_is_on_simple_support = False
@@ -367,7 +376,7 @@ class WalkingActivity(object):
     def __init__(self, ctrl, dt, lfoot_name, H_lfoot_sole, lf_contacts, rfoot_name, H_rfoot_sole, rf_contacts, waist_name, H_waist_front, waist_position, H_0_planeXY=None, horizontal_dofs="XY", vertical_dof="Z", weight=1.0, contact_as_objective=False, prefix="walking."):
         """
         :param ctrl: The ISIRController instance that will create the tasks and control them
-        :type  ctrl: :class:`core.ISIRCtrl`
+        :type  ctrl: :class:`~core.ISIRCtrl`
         :param double dt: time step of simulation
         :param string lfoot_name: The name of the left foot segment
         :param H_lfoot_sole: The displacement from the left foot segment frame to the left sole reference frame
@@ -463,6 +472,7 @@ class WalkingActivity(object):
         """ Return True if the robot is walking, meaning if it remains some footsteps to reach the desired destination, False otherwise (no step to do or arrived at destiation).
         
         It calls :meth:`FootTrajController.is_walking`
+        
         """
         if self.feet_ctrl is None:
             return False
@@ -473,6 +483,7 @@ class WalkingActivity(object):
         """ Return True if robot is in the double support phase, False otherwise.
         
         It calls :meth:`FootTrajController.is_on_double_support`
+        
         """
         if self.feet_ctrl is None:
             return True # assume that if no feet control, then it is on double support
@@ -483,6 +494,7 @@ class WalkingActivity(object):
         """ Return True if robot is in the simple support phase, False otherwise.
         
         It calls :meth:`FootTrajController.is_on_simple_support`
+        
         """
         if self.feet_ctrl is None:
             return False
@@ -542,9 +554,9 @@ class WalkingActivity(object):
         
         If `updatePxPu` is set to:
         
-        * `False`, then the matrices are not updated, they are computed based on the height reference set with `height_ref` argument;
-        * `True`, then the matrices are updated at each time step
-        * `float:tolerance`, then if the reference height move beyond this `tolerance`, then matrices are updated and new height becomes the reference
+        * False, then the matrices are not updated, they are computed based on the height reference set with `height` argument;
+        * True, then the matrices are updated at each time step
+        * float (a tolerance), then if the reference height move beyond this `tolerance`, the matrices are updated and the new height becomes the reference
         
         """
         self.RonQ          = RonQ
@@ -567,7 +579,7 @@ class WalkingActivity(object):
         
         .. todo::
            
-           The starting foot should not be set all the time, if a foot a backwards towards the walking direction,it should always start the walk activity. No?
+           The starting foot should not be set all the time, if a foot a backwards towards the walking direction,it should always start the walking activity. No?
         
         """
         self.length     = length
@@ -580,8 +592,7 @@ class WalkingActivity(object):
     def get_center_of_feet_in_XY(self):
         """ Get the average position of the feet in the planeXY.
         
-        :return: `[x_pos, y_pos, a_pos]` which are the average positions and angle between the two
-        feet reference frames in the planeXY.
+        :return: ``[x_pos, y_pos, a_pos]`` which are the average positions and angle between the two feet reference frames in the planeXY.
         
         """
         plf_XY = self.get_lfoot_pose_in_XY()[0:2]
@@ -591,7 +602,7 @@ class WalkingActivity(object):
     def get_lfoot_pose_in_XY(self):
         """ Get the left foot pose in the planeXY.
         
-        :return: `[x_pos, y_pos, a_pos]` which are the positions and angle of the left foot reference frame in the planeXY.
+        :return: ``[x_pos, y_pos, a_pos]`` which are the positions and angle of the left foot reference frame in the planeXY.
         
         """
         H_0_lfs = self.dm.getSegmentPosition(self.lfoot_index) * self.H_lfoot_sole
@@ -600,7 +611,7 @@ class WalkingActivity(object):
     def get_rfoot_pose_in_XY(self):
         """ Get the right foot pose in the planeXY.
         
-        :return: `[x_pos, y_pos, a_pos]` which are the positions and angle of the right foot reference frame in the planeXY.
+        :return: ``[x_pos, y_pos, a_pos]`` which are the positions and angle of the right foot reference frame in the planeXY.
         
         """
         H_0_rfs = self.dm.getSegmentPosition(self.rfoot_index) * self.H_rfoot_sole
@@ -611,7 +622,7 @@ class WalkingActivity(object):
         
         :param H_0_pos: The pose relative to the ground to convert.
         :type  H_0_pos: :class:`lgsm.Displacement`
-        :return: `[x_pos, y_pos, a_pos]` which are the positions and angle in the planeXY.
+        :return: ``[x_pos, y_pos, a_pos]`` which are the positions and angle in the planeXY.
         
         """
         H_XY_pos = self.H_planeXY_0 * H_0_pos

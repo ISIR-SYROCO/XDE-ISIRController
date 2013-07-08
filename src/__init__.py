@@ -1,4 +1,5 @@
-from core import *
+
+from core import ISIRCtrl
 
 import task_controller
 import walk
