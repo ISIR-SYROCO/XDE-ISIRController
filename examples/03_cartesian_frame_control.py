@@ -28,7 +28,7 @@ N = robot.getJointSpaceDim()
 ##### CTRL
 import xde_isir_controller as xic
 dynModel = physicshelper.createDynamicModel(robotWorld, rname)
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/orcisir_ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog")
+ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/XDE-ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog")
 
 
 gposdes = 0.5 * lgsm.ones(N)

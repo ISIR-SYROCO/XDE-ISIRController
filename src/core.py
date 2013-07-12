@@ -32,7 +32,7 @@ class ISIRCtrl(dsimi.rtt.Task):
     def __init__(self, libdir, dynamic_model, robot_name, physic_agent, sync_connector=None, solver="quadprog", reduced_problem=False, multi_level=False):
         """ Instantiate proxy of controller.
         
-        :param string libdir: path string where one can find the lib 'orcisir_Orocos_IsirController-gnulinux'
+        :param string libdir: path string where one can find the lib 'XDE_ISIRController-gnulinux'
         :param dynamic_model: The dynamic model based on the controlled robot
         :type  dynamic_model: :class:`physicshelper.DynamicModel`
         :param string robot_name: the name given to the robot in the GVM.Robot instance.
@@ -42,8 +42,8 @@ class ISIRCtrl(dsimi.rtt.Task):
         :param bool reduced_problem: whether one want to solve the problem in **[ddq, torque, fc]** (True) or **[torque, fc]** (False)
         :param bool multi_level: whether one wants to solve multi level problem. Thus, it enables setLevel method for tasks.
         """
-        orocos_ICTask = ddeployer.load("oIT", "Orocos_ISIRController",
-                                       module="orcisir_Orocos_IsirController-gnulinux", prefix="",
+        orocos_ICTask = ddeployer.load("oIT", "XDE_ISIRController",
+                                       module="XDE-ISIRController-gnulinux", prefix="",
                                        libdir=libdir)
         super(ISIRCtrl, self).__init__(orocos_ICTask)
         
