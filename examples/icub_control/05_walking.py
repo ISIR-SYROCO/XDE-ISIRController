@@ -124,11 +124,12 @@ print "END OF WALKING TASK"
 wm.stopAgents()
 ctrl.s.stop()
 
-ctrl.writePerformancesInFile("performances.json")
+perfs = ctrl.getPerformances()
 
 ##### RESULTS
 zmplipmpobs.s.stop()
 
-zmplipmpobs.plot(zmp_ref)
+#zmplipmpobs.plot(zmp_ref)
 
+xic.performances.plot_performances(perfs)
 
