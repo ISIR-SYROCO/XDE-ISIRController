@@ -15,6 +15,7 @@ Finally, task instances are separated from the controller to facilitate their us
 import deploy.deployer as ddeployer
 import dsimi.rtt
 import rtt_interface
+import physicshelper
 
 import lgsm
 
@@ -29,27 +30,42 @@ class ISIRCtrl(dsimi.rtt.Task):
     """ Proxy of orcisir_ISIRController.
     """
 
-    def __init__(self, libdir, dynamic_model, robot_name, physic_agent, sync_connector=None, solver="quadprog", reduced_problem=False, multi_level=False):
+    def __init__(self, libdir, dynamic_model, robot_name, physic_agent, sync_connector=None, solver="quadprog", reduced_problem=False, multi_level=False, createFunctionName="Create"):
         """ Instantiate proxy of controller.
         
         :param string libdir: path string where one can find the lib 'XDE_ISIRController-gnulinux'
         :param dynamic_model: The dynamic model based on the controlled robot
-        :type  dynamic_model: :class:`physicshelper.DynamicModel`
+        :type  dynamic_model: :class:`physicshelper.DynamicModel` or string
         :param string robot_name: the name given to the robot in the GVM.Robot instance.
         :param physic_agent: the physic agent which can the link the robot to the controller through the IConnectorRobotJointTorque & OConnectorRobotState.
         :param sync_connector: the synchronisation connector when this is required (in the WorldManager package, it is ``WorldManager.icsync``)
         :param string solver: Choose the internal solver; for now "quadprog" or "qld"
         :param bool reduced_problem: whether one want to solve the problem in **[ddq, torque, fc]** (True) or **[torque, fc]** (False)
         :param bool multi_level: whether one wants to solve multi level problem. Thus, it enables setLevel method for tasks.
+        :param string createFunctionName: if ``dynamic_model`` is a string, it means that we try to load a shared library,
+                                          and ``createFunctionName`` is the name of the function to call to create the ISIRModel.
         """
         orocos_ICTask = ddeployer.load("oIT", "XDE_ISIRController",
                                        module="XDE-ISIRController-gnulinux", prefix="",
                                        libdir=libdir)
         super(ISIRCtrl, self).__init__(orocos_ICTask)
         
+        self.physicTimeStep = physic_agent.s.GVM("main").Scene.getTimeStep()
+        self.robot_name = robot_name
+        
+        
         # set dynamic model and init inner solver
-        self.dynamic_model = dynamic_model
-        self.s.setDynModelPointerStr(str(self.dynamic_model.this.__long__()), solver, reduced_problem, multi_level)
+        if isinstance(dynamic_model, physicshelper.DynamicModel):
+            self.s.setModelFromXDEPointerStr(str(dynamic_model.this.__long__()), self.physicTimeStep)
+        elif isinstance(dynamic_model, basestring):
+            self.s.setModelFromSharedLibrary(dynamic_model, createFunctionName, robot_name)
+        else:
+            raise ValueError, "cannot load dynamic_model: "+str(dynamic_model)
+        
+        self.dynamic_model = ISIRModel(self)    # Create the ISIRModel(python) proxy that returns information of the registered ISIRModel(C++)
+        
+        
+        self.s.setControllerAndTaskManager(solver, reduced_problem, multi_level)
         
         self.NDOF0 = 6
         if self.dynamic_model.hasFixedRoot():
@@ -296,7 +312,7 @@ class ISIRCtrl(dsimi.rtt.Task):
 ################################################################################
 
 class ISIRTask(object):
-    """ Proxy of ISIRTask defined in the module 'orcisir_Orocos_IsirController-gnulinux'.
+    """ Proxy of ISIRTask defined in the module 'XDE-ISIRController-gnulinux'.
     
     This allows to bypass the controller when updating the task. A task instance which is
     separated from the controller gives simpler methods and leads to clearer code.
@@ -533,6 +549,129 @@ class ISIRTaskUpdater(dsimi.rtt.Task):
                 t_ctrl.update(tick)
 
             self.out_task_updated_port.write(tick)  #all task updates done
+
+
+
+
+
+
+
+class ISIRModel(object):
+    """ Proxy of ISIRModel defined in the module 'XDE-ISIRController-gnulinux'.
+    
+    This allows to bypass the controller when looking for information on model.
+    The model is separated from the controller, gives simpler methods and leads to clearer code.
+    
+    """
+    
+    def __init__(self, ctrl):
+        """
+        :param ctrl: the controller in which the task has been registered
+        :type  ctrl: :class:`ISIRCtrl`
+        
+        """
+        self.ctrl = ctrl
+
+    def nbDofs(self):
+        return self.ctrl.s.model_nbDofs()
+    def nbInternalDofs(self):
+        return self.ctrl.s.model_nbInternalDofs()
+    def hasFixedRoot(self):
+        return self.ctrl.s.model_hasFixedRoot()
+
+    def getJointPositions(self):
+        return self.ctrl.s.model_getJointPositions()
+    def getJointVelocities(self):
+        return self.ctrl.s.model_getJointVelocities()
+    def getFreeFlyerPosition(self):
+        return self.ctrl.s.model_getFreeFlyerPosition()
+    def getFreeFlyerVelocity(self):
+        return self.ctrl.s.model_getFreeFlyerVelocity()
+
+    def nbSegments(self):
+        return self.ctrl.s.model_nbSegments()
+    def getActuatedDofs(self):
+        return self.ctrl.s.model_getActuatedDofs()
+    def getJointLowerLimits(self):
+        return self.ctrl.s.model_getJointLowerLimits()
+    def getJointUpperLimits(self):
+        return self.ctrl.s.model_getJointUpperLimits()
+
+    def getMass(self):
+        return self.ctrl.s.model_getMass()
+    def getCoMPosition(self):
+        return self.ctrl.s.model_getCoMPosition()
+    def getCoMVelocity(self):
+        return self.ctrl.s.model_getCoMVelocity()
+    def getCoMJdotQdot(self):
+        return self.ctrl.s.model_getCoMJdotQdot()
+    def getCoMJacobian(self):
+        return self.ctrl.s.model_getCoMJacobian()
+    def getCoMJacobianDot(self):
+        return self.ctrl.s.model_getCoMJacobianDot()
+
+    def getInertiaMatrix(self):
+        return self.ctrl.s.model_getInertiaMatrix()
+    def getInertiaMatrixInverse(self):
+        return self.ctrl.s.model_getInertiaMatrixInverse()
+    def getDampingMatrix(self):
+        return self.ctrl.s.model_getDampingMatrix()
+    def getNonLinearTerms(self):
+        return self.ctrl.s.model_getNonLinearTerms()
+    def getLinearTerms(self):
+        return self.ctrl.s.model_getLinearTerms()
+    def getGravityTerms(self):
+        return self.ctrl.s.model_getGravityTerms()
+
+    def getSegmentPosition(self, index):
+        return self.ctrl.s.model_getSegmentPosition(index)
+    def getSegmentVelocity(self, index):
+        return self.ctrl.s.model_getSegmentVelocity(index)
+    def getSegmentJacobian(self, index):
+        return self.ctrl.s.model_getSegmentJacobian(index)
+    def getSegmentJdot(self, index):
+        return self.ctrl.s.model_getSegmentJdot(index)
+    def getSegmentJdotQdot(self, index):
+        return self.ctrl.s.model_getSegmentJdotQdot(index)
+    def getJointJacobian(self, index):
+        return self.ctrl.s.model_getJointJacobian(index)
+    def getSegmentMass(self, index):
+        return self.ctrl.s.model_getSegmentMass(index)
+    def getSegmentCoM(self, index):
+        return self.ctrl.s.model_getSegmentCoM(index)
+    def getSegmentMassMatrix(self, index):
+        return self.ctrl.s.model_getSegmentMassMatrix(index)
+    def getSegmentMomentsOfInertia(self, index):
+        return self.ctrl.s.model_getSegmentMomentsOfInertia(index)
+    def getSegmentInertiaAxes(self, index):
+        return self.ctrl.s.model_getSegmentInertiaAxes(index)
+
+
+    def getJointDamping(self):
+        return self.ctrl.s.model_getJointDamping()
+    def getSegmentIndex(self, name):
+        return self.ctrl.s.model_getSegmentIndex(name)
+    def getSegmentName(self, index):
+        return self.ctrl.s.model_getSegmentName(index)
+
+    # ADDED TO COMPARE MODELS!!!
+    def registerComparisonModel(self, comparison_model, createFunctionName="Create"):
+        """
+        """
+        if isinstance(comparison_model, physicshelper.DynamicModel):
+            self.ctrl.s.model_registerComparisonModelFromXDEPointerStr(str(comparison_model.this.__long__()), self.ctrl.physicTimeStep)
+        elif isinstance(comparison_model, basestring):
+            self.ctrl.s.model_registerComparisonModelFromSharedLibrary(comparison_model, createFunctionName, self.ctrl.robot_name)
+        else:
+            raise ValueError, "cannot load comparison_model: "+str(comparison_model)
+
+    def compareModels(self, q, dq, Hroot=None, Troot=None):
+        if Hroot is None:
+            Hroot = lgsm.Displacement()
+        if Troot is None:
+            Troot = lgsm.Twist()
+        return self.ctrl.s.model_compareModels(q, dq, Hroot, Troot)
+
 
 
 
