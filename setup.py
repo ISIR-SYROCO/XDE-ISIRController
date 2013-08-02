@@ -21,7 +21,7 @@ def set_xde_isir_controller_path():
 
 	for i in k:
 		if i[:2] == "-L":
-			s = os.path.join(i[2:], "orocos", "gnulinux", "XDE-ISIRController") #TODO Linux only?
+			s = i[2:]
 	cfg_file = os.path.join("src", "xic_config.py")
 	with open(cfg_file, 'w') as f:
 		f.write("xic_path = \""+s+"\"")
