@@ -22,6 +22,9 @@ def set_xde_isir_controller_path():
 	for i in k:
 		if i[:2] == "-L":
 			s = i[2:]
+			if not os.path.isfile(os.path.join(s,"libXDE-ISIRController-gnulinux.so")): #TODO: Linux only?
+				sys.exit("Cannot find libXDE-ISIRController-gnulinx.so, check installation of XDE-ISIRController")
+
 	cfg_file = os.path.join("src", "xic_config.py")
 	with open(cfg_file, 'w') as f:
 		f.write("xic_path = \""+s+"\"")
