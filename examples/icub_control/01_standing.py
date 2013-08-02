@@ -53,7 +53,7 @@ dm.setJointVelocities(lgsm.zeros(N))
 ##### CTRL
 import xde_isir_controller as xic
 dynModel = physicshelper.createDynamicModel(robotWorld, rname)
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/XDE-ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 
 
 ##### SET TASKS

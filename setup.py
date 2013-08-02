@@ -1,6 +1,6 @@
 from distutils.core import setup, Command
 
-import os, sys, string, shutil, errno
+import os, sys, string, shutil, errno, commands
 from site import USER_BASE
 
 package_name = 'xde_isir_controller'
@@ -12,6 +12,21 @@ def force_symlink(file1, file2):
 		if e.errno == errno.EEXIST:
 			shutil.rmtree(file2)
 			os.symlink(file1, file2)
+
+def set_xde_isir_controller_path():
+	s = ""
+	k = commands.getoutput("pkg-config --libs-only-L --silence-errors XDE-ISIRController").split()
+	if k == []:
+		sys.exit("XDE-ISIRController not found by pkg-config, setup aborted")
+
+	for i in k:
+		if i[:2] == "-L":
+			s = os.path.join(i[2:], "orocos", "gnulinux", "XDE-ISIRController") #TODO Linux only?
+	cfg_file = os.path.join("src", "xic_config.py")
+	with open(cfg_file, 'w') as f:
+		f.write("xic_path = \""+s+"\"")
+		f.close()
+
 
 class develop(Command):
 	description = "Create symbolic link instead of installing files"
@@ -54,7 +69,7 @@ cmdclass={'develop': develop}
 try:
 	from sphinx.setup_command import BuildDoc
 	cmdclass['build_doc'] = BuildDoc
-	
+
 except ImportError:
 	pass
 
@@ -66,6 +81,8 @@ else:
 	script_name=sys.argv[1]
 	script_args=sys.argv[2:]
 
+print "Configure XDE-ISIRController"
+set_xde_isir_controller_path()
 
 setup(name='XDE-ISIRController',
 		version='0.1',
@@ -75,7 +92,7 @@ setup(name='XDE-ISIRController',
 		package_dir={'xde_isir_controller':'src'},
 		packages=[package_name],
 		cmdclass=cmdclass,
-	
+
 		script_name=script_name,
 		script_args= script_args,
 	)

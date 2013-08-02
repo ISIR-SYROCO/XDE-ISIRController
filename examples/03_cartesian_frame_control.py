@@ -28,7 +28,7 @@ N = robot.getJointSpaceDim()
 ##### CTRL
 import xde_isir_controller as xic
 dynModel = physicshelper.createDynamicModel(robotWorld, rname)
-ctrl = xic.ISIRCtrl("/home/joe/dev/EReval/XDE-ISIRController/build/src", dynModel, rname, wm.phy, wm.icsync, "quadprog")
+ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog")
 
 
 gposdes = 0.5 * lgsm.ones(N)
@@ -40,7 +40,7 @@ fullTask.update(gposdes, gveldes)
 
 gposdes = lgsm.Displacement(.4,.4,.4,1,0,0,0)
 gveldes = lgsm.Twist()
-EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(0,0,0), "RXYZ", 1.) # dofs can be replaced by combination of 
+EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(0,0,0), "RXYZ", 1.) # dofs can be replaced by combination of
 EETask.setKpKd(20)
 EETask.update(gposdes, gveldes)
 
