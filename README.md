@@ -1,8 +1,7 @@
-XDE-RobotLoader
+XDE-ISIRController
 ===============
 
-Module to create a xde world data structure from a
-[urdf][1] description of a robot. See example in `./XDE-RobotLoader/test`
+Module to load in python the C++ controller XDE-ISIRController
 
 If `prefix` is not defined, install in python USER_BASE directory (`~/.local` by default)
 
@@ -14,9 +13,7 @@ Install module:
 
 Dev-mode:
 ----------------
-Create a symlink to `./XDE-RobotLoader/src` in `prefix` directory:
+Create a symlink to `./XDE-ISIRController/src` in `prefix` directory:
 
 `python setup.py develop [--prefix=PREFIX] [--uninstall]`
 
-
-[1]: http://www.ros.org/wiki/urdf
