@@ -48,7 +48,14 @@ wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N  = robot.getJointSpaceDim()
-dm = physicshelper.createDynamicModel(robotWorld, rname)
+
+import xde.desc.physic
+multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
+multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
+multiBodyModel.meshes.extend(robotWorld.library.meshes)
+multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
+multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
+dynModel = physicshelper.createDynamicModel(multiBodyModel)
 
 
 ##### SET INTERACTION
@@ -64,14 +71,13 @@ for name, val in [("l_arm", pi/8.), ("r_arm", pi/8.), ("l_thigh", -0.05), ("r_th
     qinit[robot.getSegmentIndex(rname+"."+name)] = val
 
 robot.setJointPositions(qinit)
-dm.setJointPositions(qinit)
+dynModel.setJointPositions(qinit)
 robot.setJointVelocities(lgsm.zeros(N))
-dm.setJointVelocities(lgsm.zeros(N))
+dynModel.setJointVelocities(lgsm.zeros(N))
 
 
 ##### CTRL
 import xde_isir_controller as xic
-dynModel = physicshelper.createDynamicModel(robotWorld, rname)
 ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 
 
@@ -82,7 +88,7 @@ ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync,
 # ... is equivalent to that:
 fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
 
-waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RXYZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58))
+waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RXYZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
 
 
 back_name   = [rname+"."+n for n in ['lap_belt_1', 'lap_belt_2', 'chest']]
@@ -94,21 +100,21 @@ RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,1
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
 
 
-ctrl.createContactTask("CLF0", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039,-.027,-.031), RotLZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF1", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039, .027,-.031), RotLZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF2", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039, .027, .099), RotLZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF3", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039,-.027, .099), RotLZdown), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF0", rname+".l_foot", lgsm.Displacement([-.039,-.027,-.031]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF1", rname+".l_foot", lgsm.Displacement([-.039, .027,-.031]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF2", rname+".l_foot", lgsm.Displacement([-.039, .027, .099]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF3", rname+".l_foot", lgsm.Displacement([-.039,-.027, .099]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
 
-ctrl.createContactTask("CRF0", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039,-.027, .031), RotRZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF1", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039, .027, .031), RotRZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF2", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039, .027,-.099), RotRZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039,-.027,-.099), RotRZdown), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF0", rname+".r_foot", lgsm.Displacement([-.039,-.027, .031]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF1", rname+".r_foot", lgsm.Displacement([-.039, .027, .031]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF2", rname+".r_foot", lgsm.Displacement([-.039, .027,-.099]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement([-.039,-.027,-.099]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
 
 
 
 ##### SET TASK CONTROLLERS
 ref_timeline, trajz = get_sin_traj(.55, .02, 5., 0, 0, 30., dt)
-waistTraj = [ (lgsm.Displacement(0,0,z), lgsm.Twist(lgsm.vector(0,0,0,0,0,vz)), lgsm.Twist(lgsm.vector(0,0,0,0,0,az))) for z,vz,az in trajz]
+waistTraj = [ (lgsm.Displacement(0,0,z,1,0,0,0), lgsm.Twist(lgsm.vector(0,0,0,0,0,vz)), lgsm.Twist(lgsm.vector(0,0,0,0,0,az))) for z,vz,az in trajz]
 
 ctrl.task_updater.register( xic.task_controller.TrajectoryTracking(waistTask, waistTraj) )
 
@@ -124,8 +130,8 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import dsimi.interactive
-#dsimi.interactive.shell()()
+#import xdefw.interactive
+#xdefw.interactive.shell_console()()
 time.sleep(30.)
 
 wm.stopAgents()

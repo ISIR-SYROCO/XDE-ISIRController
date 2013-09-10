@@ -24,10 +24,17 @@ robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N = robot.getJointSpaceDim()
 
+import xde.desc.physic
+multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
+multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
+multiBodyModel.meshes.extend(robotWorld.library.meshes)
+multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
+multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
+dynModel = physicshelper.createDynamicModel(multiBodyModel)
+
 
 ##### CTRL
 import xde_isir_controller as xic
-dynModel = physicshelper.createDynamicModel(robotWorld, rname)
 ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog")
 
 
@@ -40,7 +47,7 @@ fullTask.update(gposdes, gveldes)
 
 gposdes = lgsm.Displacement(.4,.4,.4,1,0,0,0)
 gveldes = lgsm.Twist()
-EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(0,0,0), "RXYZ", 1.) # dofs can be replaced by combination of
+EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(), "RXYZ", 1.) # dofs can be replaced by combination of
 EETask.setKpKd(20)
 EETask.update(gposdes, gveldes)
 
@@ -48,7 +55,7 @@ EETask.update(gposdes, gveldes)
 
 ##### OBSERVERS
 import observers
-jpobs = observers.FramePoseObserver(robot, "robot.07", lgsm.Displacement(0,0,0), wm.phy, wm.icsync)
+jpobs = observers.FramePoseObserver(robot, "robot.07", lgsm.Displacement(), wm.phy, wm.icsync)
 jpobs.s.start()
 
 
@@ -58,8 +65,8 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import dsimi.interactive
-#dsimi.interactive.shell()()
+#import xdefw.interactive
+#xdefw.interactive.shell_console()()
 time.sleep(5.)
 
 wm.stopAgents()

@@ -51,7 +51,14 @@ wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N  = robot.getJointSpaceDim()
-dynModel = physicshelper.createDynamicModel(robotWorld, rname)
+
+import xde.desc.physic
+multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
+multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
+multiBodyModel.meshes.extend(robotWorld.library.meshes)
+multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
+multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
+dynModel = physicshelper.createDynamicModel(multiBodyModel)
 
 
 ##### SET INTERACTION
@@ -74,7 +81,6 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-#dynModel = physicshelper.createDynamicModel(robotWorld, rname)
 ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 
 
@@ -85,7 +91,7 @@ ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync,
 # ... is equivalent to that:
 fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
 
-waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58))
+waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
 
 back_name   = [rname+"."+n for n in ['lap_belt_1', 'lap_belt_2', 'chest']]
 backTask    = ctrl.createPartialTask("back", back_name, 0.001, kp=16., pos_des=lgsm.zeros(3))
@@ -95,15 +101,15 @@ sqrt2on2 = lgsm.np.sqrt(2.)/2.
 RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
 
-ctrl.createContactTask("CLF0", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039,-.027,-.031), RotLZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF1", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039, .027,-.031), RotLZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF2", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039, .027, .099), RotLZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF3", rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039,-.027, .099), RotLZdown), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF0", rname+".l_foot", lgsm.Displacement([-.039,-.027,-.031]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF1", rname+".l_foot", lgsm.Displacement([-.039, .027,-.031]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF2", rname+".l_foot", lgsm.Displacement([-.039, .027, .099]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CLF3", rname+".l_foot", lgsm.Displacement([-.039,-.027, .099]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
 
-ctrl.createContactTask("CRF0", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039,-.027, .031), RotRZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF1", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039, .027, .031), RotRZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF2", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039, .027,-.099), RotRZdown), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039,-.027,-.099), RotRZdown), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF0", rname+".r_foot", lgsm.Displacement([-.039,-.027, .031]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF1", rname+".r_foot", lgsm.Displacement([-.039, .027, .031]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF2", rname+".r_foot", lgsm.Displacement([-.039, .027,-.099]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
+ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement([-.039,-.027,-.099]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
 
 
 
@@ -131,8 +137,8 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import dsimi.interactive
-#dsimi.interactive.shell()()
+#import xdefw.interactive
+#xdefw.interactive.shell()()
 time.sleep(10.)
 
 wm.stopAgents()

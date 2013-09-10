@@ -13,7 +13,7 @@ Finally, task instances are separated from the controller to facilitate their us
 """
 
 import deploy.deployer as ddeployer
-import dsimi.rtt
+import xdefw.rtt
 import rtt_interface
 import physicshelper
 
@@ -26,7 +26,7 @@ import json
 ################################################################################
 ################################################################################
 ################################################################################
-class ISIRCtrl(dsimi.rtt.Task):
+class ISIRCtrl(xdefw.rtt.Task):
     """ Proxy of orcisir_ISIRController.
     """
 
@@ -261,7 +261,7 @@ class ISIRCtrl(dsimi.rtt.Task):
         """ Add contact information in the solver to update contact task/constraints.
         
         :param phy_outContactPort: the output port which will transmit the contact information from physic agent
-        :type  phy_outContactPort: :class:`dsimi.rtt.OutputPort`
+        :type  phy_outContactPort: :class:`xdefw.rtt.OutputPort`
         :param string ctrl_inPortName: the name of the input port that will receive the contact information into the controller
         :param string segmentName: the segment name on which applies the contact information
         
@@ -488,7 +488,7 @@ class ISIRTaskController(object):
         pass
 
 
-class ISIRTaskUpdater(dsimi.rtt.Task):
+class ISIRTaskUpdater(xdefw.rtt.Task):
     """ Regroups every classes that inherit from :class:`ISIRTaskController`.
     """
 

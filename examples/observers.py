@@ -1,7 +1,7 @@
 #!/xde
 
 import deploy.deployer as ddeployer
-import dsimi.rtt
+import xdefw.rtt
 import rtt_interface
 
 import numpy as np
@@ -11,7 +11,7 @@ import time
 
 
 
-class ContactDistanceObserver(dsimi.rtt.Task):
+class ContactDistanceObserver(xdefw.rtt.Task):
     def __init__(self, cinfo, physic_agent, sync):
         name = "ContactDistanceObserver"
         super(ContactDistanceObserver, self).__init__(rtt_interface.PyTaskFactory.CreateTask(name))
@@ -64,7 +64,7 @@ class ContactDistanceObserver(dsimi.rtt.Task):
 
 
 
-class JointPositionsObserver(dsimi.rtt.Task):
+class JointPositionsObserver(xdefw.rtt.Task):
     def __init__(self, robot, physic_agent, sync):
         name = "JointPositionsObserver"
         super(JointPositionsObserver, self).__init__(rtt_interface.PyTaskFactory.CreateTask(name))
@@ -110,7 +110,7 @@ class JointPositionsObserver(dsimi.rtt.Task):
 
 
 
-class TorqueObserver(dsimi.rtt.Task):
+class TorqueObserver(xdefw.rtt.Task):
     def __init__(self, ctrl, physic_agent, sync):
         name = "TorqueObserver"
         super(TorqueObserver, self).__init__(rtt_interface.PyTaskFactory.CreateTask(name))
@@ -151,7 +151,7 @@ class TorqueObserver(dsimi.rtt.Task):
 
 
 
-class FramePoseObserver(dsimi.rtt.Task):
+class FramePoseObserver(xdefw.rtt.Task):
     def __init__(self, robot, seg_name, H_seg_frame, physic_agent, sync):
         name = "FramePoseObserver"
         super(FramePoseObserver, self).__init__(rtt_interface.PyTaskFactory.CreateTask(name))
@@ -196,7 +196,7 @@ class FramePoseObserver(dsimi.rtt.Task):
 
 
 
-class CoMPositionObserver(dsimi.rtt.Task):
+class CoMPositionObserver(xdefw.rtt.Task):
     def __init__(self, dynModel, physic_agent, sync):
         name = "CoMPositionObserver"
         super(CoMPositionObserver, self).__init__(rtt_interface.PyTaskFactory.CreateTask(name))

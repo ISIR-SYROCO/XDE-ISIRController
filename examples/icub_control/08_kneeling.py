@@ -30,7 +30,14 @@ wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N  = robot.getJointSpaceDim()
-dynModel = physicshelper.createDynamicModel(robotWorld, rname)
+
+import xde.desc.physic
+multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
+multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
+multiBodyModel.meshes.extend(robotWorld.library.meshes)
+multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
+multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
+dynModel = physicshelper.createDynamicModel(multiBodyModel)
 
 
 ##### SET INTERACTION
@@ -83,9 +90,9 @@ l_contacts = []
 r_contacts = []
 for y in [-.027, .027]:
     for z in [-.031, .099]:
-        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement(lgsm.vector(-.039, y, z), RotLZdown), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5, 0.) # mu, margin
         l_contacts.append(ct)
-        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement(lgsm.vector(-.039, y,-z), RotRZdown), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5, 0.) # mu, margin
         r_contacts.append(ct)
         i+=1
 
@@ -97,13 +104,13 @@ for y in [-.027, .027]:
 ##### SET TASK CONTROLLERS
 RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-H_lf_sole = lgsm.Displacement(lgsm.vector(-.039, 0, .034), RotLZdown )
-H_rf_sole = lgsm.Displacement(lgsm.vector(-.039, 0,-.034), RotRZdown )
+H_lf_sole = lgsm.Displacement([-.039, 0, .034]+RotLZdown.tolist() )
+H_rf_sole = lgsm.Displacement([-.039, 0,-.034]+RotRZdown.tolist() )
 walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
-                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56),
-                                    H_0_planeXY=lgsm.Displacement(0,0,0.002), weight=10., contact_as_objective=True)
+                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56,1,0,0,0),
+                                    H_0_planeXY=lgsm.Displacement(0,0,0.002,1,0,0,0), weight=10., contact_as_objective=True)
 
 
 walkingActivity.stayIdle()
@@ -111,7 +118,7 @@ walkingActivity.stayIdle()
 
 ##### OBSERVERS
 from observers import ZMPLIPMPositionObserver
-zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002), dt, 9.81, wm.phy, wm.icsync)
+zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81, wm.phy, wm.icsync)
 zmplipmpobs.s.start()
 
 
@@ -121,8 +128,8 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import dsimi.interactive
-#dsimi.interactive.shell()()
+#import xdefw.interactive
+#xdefw.interactive.shell_console()()
 time.sleep(0.)
 
 walkingActivity.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
@@ -132,7 +139,7 @@ zmp_ref = walkingActivity.moveOneFoot("left", .22, .05, angle=0)
 walkingActivity.wait_for_end_of_walking()
 print "END OF STEP"
 
-walkingActivity.set_waist_altitude(lgsm.Displacement(0,0,.45))
+walkingActivity.set_waist_altitude(lgsm.Displacement(0,0,.45,1,0,0,0))
 
 
 time.sleep(5.)

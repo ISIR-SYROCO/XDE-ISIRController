@@ -1,7 +1,7 @@
 #!/xde
 
 import deploy.deployer as ddeployer
-import dsimi.rtt
+import xdefw.rtt
 import rtt_interface
 
 import numpy as np
@@ -12,7 +12,7 @@ import time
 
 
 
-class Recorder(dsimi.rtt.Task):
+class Recorder(xdefw.rtt.Task):
     def __init__(self, name, physic_agent, sync_connector=None):
         super(Recorder, self).__init__(rtt_interface.PyTaskFactory.CreateTask(name))
         self.tick_in  = self.addCreateInputPort("tick.in", "int", True)
@@ -52,7 +52,7 @@ class Recorder(dsimi.rtt.Task):
 
 
 
-class ContactDistanceObserver(dsimi.rtt.Task):
+class ContactDistanceObserver(xdefw.rtt.Task):
     def __init__(self, cinfo, physic_agent, sync):
         name = "ContactDistanceObserver"
         super(ContactDistanceObserver, self).__init__(rtt_interface.PyTaskFactory.CreateTask(name))
@@ -227,7 +227,9 @@ class ZMPLIPMPositionObserver(Recorder):
         self.gravity   = gravity
         
         self.H_plane_0         = H_0_plane.inverse()
-        self.H_plane_0_for_vel = lgsm.Displacement(lgsm.vector(0,0,0), self.H_plane_0.getRotation())
+        self.H_plane_0_for_vel = lgsm.Displacement()
+        self.H_plane_0_for_vel.setTranslation(lgsm.vectord(0,0,0))
+        self.H_plane_0_for_vel.setRotation(self.H_plane_0.getRotation())
         
         self.prev_vcom      = self.dynModel.getCoMVelocity()
         self.prev_prev_vcom = self.dynModel.getCoMVelocity()
@@ -285,18 +287,13 @@ class ScreenShotObserver(Recorder):
         self.cam_name    = "mainViewportBaseCamera"
         self.window_name = "mainWindow"
         
-        d_g_c = self.wm.graph_scn.CameraInterface.getCameraDisplacement(self.cam_name)
-        d_p_c = self.wm.graph_scn.CameraInterface.getCameraDisplacementInPhysicSpace(self.cam_name)
-        
-        self.d_g_p = d_g_c * d_p_c.inverse()
-        
         self.wm.resizeWindow(self.window_name, x, y)
 
 
     def doUpdateHook(self):
         
         if self.idx < len(self.cam_traj):
-            self.wm.graph_scn.CameraInterface.setCameraDisplacement(self.cam_name, self.d_g_p * self.cam_traj[self.idx] ) #,0.707,0.707,0,0
+            self.wm.graph_scn.CameraInterface.setDisplacementRelative(self.cam_name, self.cam_traj[self.idx] )
         
         img_name = self.rec_folder + os.sep + "{:06d}.png".format(self.idx)
         self.wm.graph.s.Viewer.takeScreenShot(self.window_name, img_name)
@@ -322,7 +319,7 @@ def rotationToAlignFirstToSecond(first, second):
     ov, t, st, ct = getOrthogonalityData(first, second)
 
     if ov is not None:
-        return lgsm.Quaternion( ov, t )
+        return lgsm.Quaternion.fromAxisAngle( ov, t )
     else:
         if ct >= 0:
             return lgsm.Quaternion(1,0,0,0)
@@ -346,10 +343,13 @@ def lookAt(_from, _to, _up):
     ov_UP, t, st, ct = getOrthogonalityData(minusZ, Up_in_Z)
     if ov_UP is not None:
         ov_diff, t_diff, st_diff, ct_diff = getOrthogonalityData(ov_Y, ov_UP)
-        Q_Z_UP = lgsm.Quaternion( ov_diff, t_diff)
+        Q_Z_UP = lgsm.Quaternion.fromAxisAngle( ov_diff, t_diff)
     else:
         Q_Z_UP = lgsm.Quaternion()
 
-    return lgsm.Displacement(_from, Q_0_Z * Q_Z_UP )
+    H = lgsm.Displacement()
+    H.setTranslation(_from)
+    H.setRotation(Q_0_Z * Q_Z_UP)
+    return H
 
 

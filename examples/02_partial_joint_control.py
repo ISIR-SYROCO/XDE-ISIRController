@@ -24,10 +24,17 @@ robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N = robot.getJointSpaceDim()
 
+import xde.desc.physic
+multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
+multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
+multiBodyModel.meshes.extend(robotWorld.library.meshes)
+multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
+multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
+dynModel = physicshelper.createDynamicModel(multiBodyModel)
+
 
 ##### CTRL
 import xde_isir_controller as xic
-dynModel = physicshelper.createDynamicModel(robotWorld, rname)
 ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog")
 
 
@@ -63,8 +70,8 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import dsimi.interactive
-#dsimi.interactive.shell()()
+#import xdefw.interactive
+#xdefw.interactive.shell_console()()
 time.sleep(5.)
 
 wm.stopAgents()

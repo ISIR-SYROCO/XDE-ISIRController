@@ -136,7 +136,7 @@ def zmppoints2foottraj(points, step_time, ratio, step_height, dt, H_0_planeXY):
     """
     foot_traj = []
 
-    Adj_0_planeXY = lgsm.Displacement(lgsm.vector(0,0,0), H_0_planeXY.getRotation()).adjoint()
+    Adj_0_planeXY = lgsm.Displacement([0,0,0]+H_0_planeXY.getRotation().tolist()).adjoint()
 
     xin   = [0, step_time*ratio]
     xin_Z = [0, step_time*ratio/2., step_time*ratio]
@@ -159,7 +159,7 @@ def zmppoints2foottraj(points, step_time, ratio, step_height, dt, H_0_planeXY):
 
         for j in np.arange(len(xout)):
 
-            pos_j = lgsm.Displacement(lgsm.vector(res_X[0][j], res_Y[0][j], res_Z[0][j]), lgsm.Quaternion(np.cos(res_A[0][j]/2.), 0, 0, np.sin(res_A[0][j]/2.) ))
+            pos_j = lgsm.Displacement(res_X[0][j], res_Y[0][j], res_Z[0][j], np.cos(res_A[0][j]/2.), 0, 0, np.sin(res_A[0][j]/2.) )
             vel_j = lgsm.Twist( lgsm.vector(0, 0, res_A[1][j], res_X[1][j], res_Y[1][j], res_Z[1][j]) )
             acc_j = lgsm.Twist( lgsm.vector(0, 0, res_A[2][j], res_X[2][j], res_Y[2][j], res_Z[2][j]) )
 
@@ -187,7 +187,7 @@ def zmppoints2waisttraj(points, step_time, dt, H_0_planeXY):
     """
     waist_traj = []
     
-    Adj_0_planeXY = lgsm.Displacement(lgsm.vector(0,0,0), H_0_planeXY.getRotation()).adjoint()
+    Adj_0_planeXY = lgsm.Displacement([0,0,0]+H_0_planeXY.getRotation().tolist()).adjoint()
     
     xin   = [0, step_time]
     xout  = np.arange(0, step_time+dt, dt)
@@ -201,7 +201,7 @@ def zmppoints2waisttraj(points, step_time, dt, H_0_planeXY):
         
         for j in np.arange(len(xout)):
 
-            pos_j = lgsm.Displacement(lgsm.zeros(3), lgsm.Quaternion(np.cos(res_A[0][j]/2.), 0, 0, np.sin(res_A[0][j]/2.) ))
+            pos_j = lgsm.Displacement(0,0,0, np.cos(res_A[0][j]/2.), 0, 0, np.sin(res_A[0][j]/2.) )
             vel_j = lgsm.Twist( lgsm.vector(0, 0, res_A[1][j], 0,0,0) )
             acc_j = lgsm.Twist( lgsm.vector(0, 0, res_A[2][j], 0,0,0) )
 
@@ -627,7 +627,7 @@ class WalkingActivity(object):
         """
         H_XY_pos = self.H_planeXY_0 * H_0_pos
         R        = H_XY_pos.getRotation()
-        angle    = 2. * np.arctan2( R.z, R.w )
+        angle    = 2. * np.arctan2( R.qz, R.qw )
         return np.array( [H_XY_pos.x, H_XY_pos.y, angle] )
 
 
