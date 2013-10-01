@@ -743,10 +743,10 @@ class WalkingActivity(object):
             angle = angle_start
 
         if start_foot == 'left':
-            lpose = length*forward_direction + side_length*left_direction
+            lpose = l_start[0:2] + length*forward_direction + side_length*left_direction
             points = [l_start, r_start, (lpose[0], lpose[1], angle)]
         elif start_foot == 'right':
-            rpose = length*forward_direction - side_length*left_direction # minus because it is right foot
+            rpose = r_start[0:2] + length*forward_direction - side_length*left_direction # minus because it is right foot
             points = [r_start, l_start, (rpose[0], rpose[1], angle)]
         else:
             raise ValueError
