@@ -763,7 +763,7 @@ class WalkingActivity(object):
         self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
         self.ctrl.task_updater.register( self.com_ctrl )
 
-        self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective)
+        self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, start_foot, self.contact_as_objective)
         self.ctrl.task_updater.register( self.feet_ctrl )
 
         self.waist_rot_ctrl.set_new_trajectory( wtraj )

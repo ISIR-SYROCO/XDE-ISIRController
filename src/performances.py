@@ -47,7 +47,7 @@ def link_subplots( first_axes, base1, out1, second_axes, base2, out2, dint, dout
 
 
 
-def plot_performances( perf ):
+def plot_performances( perf , outfile="./performances.pdf"):
     """
     """
     if not isinstance(perf, dict):
@@ -123,7 +123,7 @@ def plot_performances( perf ):
                    (3,1,3), [0.], ctrl_solve,
                    .05, .06 , "r", 0.3)
 
-    pl.savefig("./performances.pdf", bbox_inches='tight' )
+    pl.savefig(outfile, bbox_inches='tight' )
 
     ##########################
     pl.show()
