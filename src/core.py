@@ -460,6 +460,13 @@ class ISIRTask(object):
         """
         return self.ctrl.s.getTaskErrorDot(self.index)
 
+    def getComputedForce(self):
+        """ get the force computed during the controller optimization, for a contact task.
+        
+        :rtype: a :class:`lgsm.vector` of computed force (should be of size 3)
+        
+        """
+        return self.ctrl.s.getTaskComputedForce(self.index)
 
 
 ################################################################################

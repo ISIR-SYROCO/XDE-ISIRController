@@ -1,5 +1,6 @@
 
-from core import ISIRCtrl
+from core  import ISIRCtrl
+from model import ISIRModel
 
 import task_controller
 import walk
