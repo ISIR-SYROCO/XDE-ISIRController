@@ -44,7 +44,7 @@ dynModel = physicshelper.createDynamicModel(multiBodyModel)
 ##### SET INTERACTION
 wm.ms.setContactLawForMaterialPair("material.metal", "material.concrete", 1, 1.5)
 robot.enableContactWithBody("ground.ground", True)
-wm.addInteraction([(rname+"."+b,"ground.ground") for b in ["l_foot", "r_foot"]]) # to display contact
+wm.contact.showContacts([(rname+"."+b,"ground.ground") for b in ["l_foot", "r_foot"]]) # to display contact
 
 
 ##### SET INITIAL STATE

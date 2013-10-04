@@ -43,7 +43,7 @@ dynModel = physicshelper.createDynamicModel(multiBodyModel)
 ##### SET INTERACTION
 wm.ms.setContactLawForMaterialPair("material.metal", "material.concrete", 2, 2.5)
 robot.enableContactWithBody("ground.ground", True)
-wm.addInteraction([(rname+"."+b,"ground.ground") for b in ["l_foot", "r_foot"]]) # to display contact
+wm.contact.showContacts([(rname+"."+b,"ground.ground") for b in ["l_foot", "r_foot"]]) # to display contact
 
 
 ##### SET INITIAL STATE
@@ -61,7 +61,7 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", False)
 
 ctrl.setTorqueLimits( 150.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)
@@ -133,7 +133,7 @@ wm.phy.s.agent.triggerUpdate()
 time.sleep(0.)
 
 walkingActivity.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
-zmp_ref = walkingActivity.moveOneFoot("left", .22, .05, angle=0)
+zmp_ref = walkingActivity.moveOneFoot("left", .18, .05, angle=0)
 
 
 walkingActivity.wait_for_end_of_walking()
