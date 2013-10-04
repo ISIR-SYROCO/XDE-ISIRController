@@ -7,7 +7,7 @@ The operations proposed by the controller and the tasks managment may not be
 well documented, and there may be lack of flexibility (e.g. no default values).
 
 To overcome that, proxy methods are defined in a python class which derived from
-dsmi.rtt.Task, with more flexibility on parameter definition.
+xdefw.rtt.Task, with more flexibility on parameter definition.
 
 Finally, task instances are separated from the controller to facilitate their use.
 """
@@ -21,7 +21,7 @@ import lgsm
 
 import json
 
-
+from model import ISIRModel
 
 ################################################################################
 ################################################################################
@@ -62,8 +62,7 @@ class ISIRCtrl(xdefw.rtt.Task):
         else:
             raise ValueError, "cannot load dynamic_model: "+str(dynamic_model)
         
-        self.dynamic_model = ISIRModel(self)    # Create the ISIRModel(python) proxy that returns information of the registered ISIRModel(C++)
-        
+        self.dynamic_model = ISIRModel(libdir, dynamic_model)    # Create the ISIRModel(python) proxy that returns information of the registered ISIRModel(C++)
         
         self.s.setControllerAndTaskManager(solver, reduced_problem, multi_level)
         
@@ -549,130 +548,6 @@ class ISIRTaskUpdater(xdefw.rtt.Task):
                 t_ctrl.update(tick)
 
             self.out_task_updated_port.write(tick)  #all task updates done
-
-
-
-
-
-
-
-class ISIRModel(object):
-    """ Proxy of ISIRModel defined in the module 'XDE-ISIRController-gnulinux'.
-    
-    This allows to bypass the controller when looking for information on model.
-    The model is separated from the controller, gives simpler methods and leads to clearer code.
-    
-    """
-    
-    def __init__(self, ctrl):
-        """
-        :param ctrl: the controller in which the task has been registered
-        :type  ctrl: :class:`ISIRCtrl`
-        
-        """
-        self.ctrl = ctrl
-
-    def nbDofs(self):
-        return self.ctrl.s.model_nbDofs()
-    def nbInternalDofs(self):
-        return self.ctrl.s.model_nbInternalDofs()
-    def hasFixedRoot(self):
-        return self.ctrl.s.model_hasFixedRoot()
-
-    def getJointPositions(self):
-        return self.ctrl.s.model_getJointPositions()
-    def getJointVelocities(self):
-        return self.ctrl.s.model_getJointVelocities()
-    def getFreeFlyerPosition(self):
-        return self.ctrl.s.model_getFreeFlyerPosition()
-    def getFreeFlyerVelocity(self):
-        return self.ctrl.s.model_getFreeFlyerVelocity()
-
-    def nbSegments(self):
-        return self.ctrl.s.model_nbSegments()
-    def getActuatedDofs(self):
-        return self.ctrl.s.model_getActuatedDofs()
-    def getJointLowerLimits(self):
-        return self.ctrl.s.model_getJointLowerLimits()
-    def getJointUpperLimits(self):
-        return self.ctrl.s.model_getJointUpperLimits()
-
-    def getMass(self):
-        return self.ctrl.s.model_getMass()
-    def getCoMPosition(self):
-        return self.ctrl.s.model_getCoMPosition()
-    def getCoMVelocity(self):
-        return self.ctrl.s.model_getCoMVelocity()
-    def getCoMJdotQdot(self):
-        return self.ctrl.s.model_getCoMJdotQdot()
-    def getCoMJacobian(self):
-        return self.ctrl.s.model_getCoMJacobian()
-    def getCoMJacobianDot(self):
-        return self.ctrl.s.model_getCoMJacobianDot()
-
-    def getInertiaMatrix(self):
-        return self.ctrl.s.model_getInertiaMatrix()
-    def getInertiaMatrixInverse(self):
-        return self.ctrl.s.model_getInertiaMatrixInverse()
-    def getDampingMatrix(self):
-        return self.ctrl.s.model_getDampingMatrix()
-    def getNonLinearTerms(self):
-        return self.ctrl.s.model_getNonLinearTerms()
-    def getLinearTerms(self):
-        return self.ctrl.s.model_getLinearTerms()
-    def getGravityTerms(self):
-        return self.ctrl.s.model_getGravityTerms()
-
-    def getSegmentPosition(self, index):
-        return self.ctrl.s.model_getSegmentPosition(index)
-    def getSegmentVelocity(self, index):
-        return self.ctrl.s.model_getSegmentVelocity(index)
-    def getSegmentJacobian(self, index):
-        return self.ctrl.s.model_getSegmentJacobian(index)
-    def getSegmentJdot(self, index):
-        return self.ctrl.s.model_getSegmentJdot(index)
-    def getSegmentJdotQdot(self, index):
-        return self.ctrl.s.model_getSegmentJdotQdot(index)
-    def getJointJacobian(self, index):
-        return self.ctrl.s.model_getJointJacobian(index)
-    def getSegmentMass(self, index):
-        return self.ctrl.s.model_getSegmentMass(index)
-    def getSegmentCoM(self, index):
-        return self.ctrl.s.model_getSegmentCoM(index)
-    def getSegmentMassMatrix(self, index):
-        return self.ctrl.s.model_getSegmentMassMatrix(index)
-    def getSegmentMomentsOfInertia(self, index):
-        return self.ctrl.s.model_getSegmentMomentsOfInertia(index)
-    def getSegmentInertiaAxes(self, index):
-        return self.ctrl.s.model_getSegmentInertiaAxes(index)
-
-
-    def getJointDamping(self):
-        return self.ctrl.s.model_getJointDamping()
-    def getSegmentIndex(self, name):
-        return self.ctrl.s.model_getSegmentIndex(name)
-    def getSegmentName(self, index):
-        return self.ctrl.s.model_getSegmentName(index)
-
-    # ADDED TO COMPARE MODELS!!!
-    def registerComparisonModel(self, comparison_model, createFunctionName="Create"):
-        """
-        """
-        if isinstance(comparison_model, physicshelper.DynamicModel):
-            self.ctrl.s.model_registerComparisonModelFromXDEPointerStr(str(comparison_model.this.__long__()), self.ctrl.physicTimeStep)
-        elif isinstance(comparison_model, basestring):
-            self.ctrl.s.model_registerComparisonModelFromSharedLibrary(comparison_model, createFunctionName, self.ctrl.robot_name)
-        else:
-            raise ValueError, "cannot load comparison_model: "+str(comparison_model)
-
-    def compareModels(self, q, dq, Hroot=None, Troot=None):
-        if Hroot is None:
-            Hroot = lgsm.Displacement()
-        if Troot is None:
-            Troot = lgsm.Twist()
-        return self.ctrl.s.model_compareModels(q, dq, Hroot, Troot)
-
-
 
 
 
