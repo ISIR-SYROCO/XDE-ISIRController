@@ -24,23 +24,23 @@ class ISIRModel(xdefw.rtt.Task):
     
     """
 
-    _OIMODEL = 0
-    
+    _NBISIRMODEL = 0
+
     def __init__(self, libdir, dynamic_model, createFunctionName="Create", robot_name="robot", dt=0.):
         """
         :param ctrl: the controller in which the task has been registered
         :type  ctrl: :class:`ISIRCtrl`
         
         """
-        oiname = "oIModel"+str(ISIRModel._OIMODEL)
+        oiname = "oISIRModel"+str(ISIRModel._NBISIRMODEL)
         orocos_IMTask = ddeployer.load(oiname, "XDE_ISIRModel",
                                        module="XDE-ISIRModel-gnulinux", prefix="",
                                        libdir=libdir)
         super(ISIRModel, self).__init__(orocos_IMTask)
         
-        ISIRModel._OIMODEL += 1
+        ISIRModel._NBISIRMODEL += 1
         
-#        set dynamic model and init inner solver
+#        set dynamic model
         if isinstance(dynamic_model, physicshelper.DynamicModel):
             self.s.setModelFromXDEPointerStr(str(dynamic_model.this.__long__()), dt)
         elif isinstance(dynamic_model, basestring):
