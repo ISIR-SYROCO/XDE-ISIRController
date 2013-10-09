@@ -4,7 +4,6 @@
 import xde_world_manager as xwm
 import xde_robot_loader  as xrl
 import xde_resources     as xr
-import physicshelper
 import lgsm
 import time
 
@@ -20,13 +19,7 @@ wm.resizeWindow("mainWindow", 640, 480, 1000, 50)
 robotWorld = xrl.createWorldFromUrdfFile("resources/moving_wall.xml", "moving_wall", [0.6,0,0.25,1,0,0,0], True, 0.001, 0.01)
 wm.addWorld(robotWorld)
 
-import xde.desc.physic
-multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
-multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
-multiBodyModel.meshes.extend(robotWorld.library.meshes)
-multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
-multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
-dynModel_moving_wall = physicshelper.createDynamicModel(multiBodyModel)
+dynModel_moving_wall = xrl.getDynamicModelFromWorld(robotWorld)
 
 
 
@@ -37,13 +30,7 @@ robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N = robot.getJointSpaceDim()
 
-import xde.desc.physic
-multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
-multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
-multiBodyModel.meshes.extend(robotWorld.library.meshes)
-multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
-multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
-dynModel = physicshelper.createDynamicModel(multiBodyModel)
+dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 
 #import xdefw.interactive
@@ -86,13 +73,14 @@ fullTask = ctrl.createFullTask("full", 0.0001)  # create full task with a very l
 fullTask.setKpKd(0, 10)
 fullTask.update(gposdes, gveldes)
 
-
+##### To do an impedance task (an acceleration task without contact)
 #gposdes = lgsm.Displacement(.8,0,.25,1,0,0,0)
 #gveldes = lgsm.Twist()
 #EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(), "XYZ", 1.)
 #EETask.setKpKd(10)
 #EETask.update(gposdes, gveldes)
 
+##### To do a real force task
 EETask = ctrl.createForceTask("EE", "robot.07", lgsm.Displacement(), 1.0)
 EETask.update(lgsm.vector(10,0,0), True)
 
