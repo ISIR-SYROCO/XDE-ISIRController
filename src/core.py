@@ -92,10 +92,10 @@ class ISIRCtrl(xdefw.rtt.Task):
             sync_connector.addEvent(robotPrefix+"tau")
         self.getPort("tau").connectTo(physic_agent.getPort(robotPrefix+"tau"))
 
-        self.task_updater = ISIRTaskUpdater()
-        self.getPort("tasks_to_update").connectTo(self.task_updater.getPort("ctrl_trigger"))
-        self.task_updater.getPort("tasks_updated").connectTo(self.getPort("tasks_updated"))
-        self.task_updater.s.start()
+        self.updater = ISIRUpdater()
+        self.getPort("tasks_to_update").connectTo(self.updater.getPort("ctrl_trigger"))
+        self.updater.getPort("tasks_updated").connectTo(self.getPort("tasks_updated"))
+        self.updater.s.start()
 
 
     ########################################################################
@@ -649,8 +649,8 @@ class ISIRTaskController(object):
         pass
 
 
-class ISIRTaskUpdater(xdefw.rtt.Task):
-    """ Regroups every classes that inherit from :class:`ISIRTaskController`.
+class ISIRUpdater(xdefw.rtt.Task):
+    """ Regroups every classes that inherit from :class:`ISIRTaskController` or :class:`ISIRObserver`.
     """
 
     def __init__(self):
@@ -663,34 +663,33 @@ class ISIRTaskUpdater(xdefw.rtt.Task):
           all update methods have finished.
         
         """
-        super(ISIRTaskUpdater, self).__init__(rtt_interface.PyTaskFactory.CreateTask("ISIRTaskUpdater"))
+        super(ISIRUpdater, self).__init__(rtt_interface.PyTaskFactory.CreateTask("ISIRUpdater"))
 
-        self.in_ctrl_trigger_port  = self.addCreateInputPort("ctrl_trigger",   "int", True)
-        self.out_task_updated_port = self.addCreateOutputPort("tasks_updated", "int")
+        self.in_ctrl_trigger_port = self.addCreateInputPort("ctrl_trigger",   "int", True)
+        self.out_updated_port     = self.addCreateOutputPort("tasks_updated", "int")
 
 
-    def register(self, new_task_controller):
-        """ Register a new task controller.
+    def register(self, new_updater):
+        """ Register a new updater.
         
-        :param new_task_controller: the task controller to register
-        :type  new_task_controller: :class:`ISIRTaskController`
+        :param new_updater: the updater to register
+        :type  new_updater: :class:`ISIRTaskController` or :class:`ISIRObserver`
         """
-        assert( isinstance(new_task_controller, ISIRTaskController) )
-        self.task_controllers.append(new_task_controller)
+        self.updaters.append(new_updater)
 
-    def remove(self, old_task_controller):
-        """ Remove a task controller.
+    def remove(self, old_updater):
+        """ Remove a updater.
         
-        :param old_task_controller: the task controller to remove
-        :type  old_task_controller: :class:`ISIRTaskController`
+        :param old_updater: the updater to remove
+        :type  old_updater: :class:`ISIRTaskController` or :class:`ISIRObserver`
         
         """
-        self.task_controllers.remove(old_task_controller)
+        self.updaters.remove(old_updater)
 
     def startHook(self):
-        """ Start hook. It just creates a new list of task controllers.
+        """ Start hook. It just creates a new list of updaters.
         """
-        self.task_controllers = []
+        self.updaters = []
 
     def stopHook(self):
         """ Stop hook. Actually it does nothing.
@@ -701,15 +700,16 @@ class ISIRTaskUpdater(xdefw.rtt.Task):
         """ Start hook.
         
         When the "ctrl_trigger" port receives a tick, it updates all the registered
-        task controllers. When all done, it writes back the tick in the "tasks_updated" port.
+        updaters. When all done, it writes back the tick in the "tasks_updated" port.
         
         """
         tick, tick_ok = self.in_ctrl_trigger_port.read()
         if tick_ok:
-            for t_ctrl in self.task_controllers:    #TODO: should be parallelized
-                t_ctrl.update(tick)
+            for updt in self.updaters:    #TODO: should be parallelized
+                updt.update(tick)
 
-            self.out_task_updated_port.write(tick)  #all task updates done
+            self.out_updated_port.write(tick)  #all task updates done
+
 
 
 

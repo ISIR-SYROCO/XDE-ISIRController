@@ -115,7 +115,7 @@ CoMTask     = ctrl.createCoMTask("com", "XY", 10., kp=0.) #, kd=0.
 zmp_traj = get_zmp_traj('square', T=1, dt=dt, amp=.02, t0=1., tend=6.)
 
 
-ctrl.task_updater.register( xic.task_controller.ZMPController( CoMTask, dynModel, zmp_traj, RonQ=1e-6, horizon=1.8, dt=dt, H_0_planeXY=lgsm.Displacement(), stride=3, gravity=9.81) )
+ctrl.updater.register( xic.task_controller.ZMPController( CoMTask, dynModel, zmp_traj, RonQ=1e-6, horizon=1.8, dt=dt, H_0_planeXY=lgsm.Displacement(), stride=3, gravity=9.81) )
 
 
 ##### OBSERVERS

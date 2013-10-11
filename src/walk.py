@@ -451,10 +451,10 @@ class WalkingActivity(object):
         self.waist_rot_ctrl = task_controller.TrajectoryTracking(self.waist_rot_task, [])
         self.waist_alt_ctrl = task_controller.TrajectoryTracking(self.waist_alt_task, [])
 
-        self.ctrl.task_updater.register( self.lfoot_ctrl )
-        self.ctrl.task_updater.register( self.rfoot_ctrl )
-        self.ctrl.task_updater.register( self.waist_rot_ctrl )
-        self.ctrl.task_updater.register( self.waist_alt_ctrl )
+        self.ctrl.updater.register( self.lfoot_ctrl )
+        self.ctrl.updater.register( self.rfoot_ctrl )
+        self.ctrl.updater.register( self.waist_rot_ctrl )
+        self.ctrl.updater.register( self.waist_alt_ctrl )
 
         self.set_zmp_control_parameters()
         self.set_step_parameters()
@@ -631,6 +631,25 @@ class WalkingActivity(object):
         return np.array( [H_XY_pos.x, H_XY_pos.y, angle] )
 
 
+    def setControllersObjectives(self, zmp_traj, feet_trajs=None, waist_traj=None):
+        """
+        """
+        if self.com_ctrl is not None:
+            self.ctrl.updater.remove( self.com_ctrl )
+        if self.feet_ctrl is not None:
+            self.ctrl.updater.remove( self.feet_ctrl )
+
+        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_traj, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
+        self.ctrl.updater.register( self.com_ctrl )
+
+        if feet_trajs is not None:
+            self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, feet_trajs, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective)
+            self.ctrl.updater.register( self.feet_ctrl )
+
+        if waist_traj is not None:
+            self.waist_rot_ctrl.set_new_trajectory( waist_traj )
+
+
     def stayIdle(self, com_position=None):
         """ Generate a behavior where the robot stay idle.
         
@@ -643,14 +662,10 @@ class WalkingActivity(object):
         if com_position is None:
             com_position = self.get_center_of_feet_in_XY()
 
-        if self.com_ctrl is not None:
-            self.ctrl.task_updater.remove( self.com_ctrl )
-
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, [com_position], self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
-        self.ctrl.task_updater.register( self.com_ctrl )
+        self.setControllersObjectives([com_position])
 
 
-    def goTo(self, pos_in_XY, relative_pos=False, angle=None, search_path_tolerance=1e-2, verbose=False):
+    def goTo(self, pos_in_XY, relative_pos=False, angle=None, search_path_tolerance=1e-2):
         """ Generate a walking activity where the robot has to reach a desired destination.
         
         :param pos_in_XY: The desired final position expressed in the planeXY.
@@ -658,7 +673,6 @@ class WalkingActivity(object):
         :param bool relative_pos: If True, the `pos_in_XY` is considered relatively to the current robot position (returned by :meth:`get_center_of_feet_in_XY`), if False it is considered relatively to the planeXY
         :param double angle: The final angle/orientation of the robot expressed in the planeXY
         :param double search_path_tolerance: The distance for the trajectory discretization
-        :param bool verbose: If one wants to get the log information sent by the :class:`FootTrajController`
         
         This function create a discretized straight line from the current position to the desired destination, and a constant angle during the whole motion.
         Hence, it is possible to generate a straffing motion.
@@ -679,15 +693,14 @@ class WalkingActivity(object):
         N = int(path_length/search_path_tolerance)
         traj = np.array([np.linspace(start[0], end[0], N), np.linspace(start[1], end[1], N), angle*np.ones(N)]).T
 
-        self.followTrajectory(traj, verbose)
+        self.followTrajectory(traj)
 
 
-    def followTrajectory(self, trajectory, verbose=False):
+    def followTrajectory(self, trajectory):
         """ Generate a walking activity where the robot has to follow a desired trajectory.
         
         :param trajectory: The trajectory to follow
         :type  trajectory: (N,3)-array
-        :param bool verbose: If one wants to get the log information sent by the :class:`FootTrajController`
         
         The trajectory is a (N,3)-array where:
         
@@ -706,18 +719,7 @@ class WalkingActivity(object):
         ftraj   = zmppoints2foottraj(points, self.step_time, self.ratio, self.height, self.dt, self.H_0_planeXY)
         wtraj   = zmppoints2waisttraj(points, self.step_time, self.dt, self.H_0_planeXY)
 
-        if self.com_ctrl is not None:
-            self.ctrl.task_updater.remove( self.com_ctrl )
-        if self.feet_ctrl is not None:
-            self.ctrl.task_updater.remove( self.feet_ctrl )
-
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
-        self.ctrl.task_updater.register( self.com_ctrl )
-
-        self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective, verbose)
-        self.ctrl.task_updater.register( self.feet_ctrl )
-
-        self.waist_rot_ctrl.set_new_trajectory( wtraj )
+        self.setControllersObjectives(zmp_ref, ftraj, wtraj)
 
         return zmp_ref
 
@@ -755,18 +757,7 @@ class WalkingActivity(object):
         ftraj   = zmppoints2foottraj(points, self.step_time, self.ratio, self.height, self.dt, self.H_0_planeXY)
         wtraj   = zmppoints2waisttraj(points, self.step_time, self.dt, self.H_0_planeXY)
 
-        if self.com_ctrl is not None:
-            self.ctrl.task_updater.remove( self.com_ctrl )
-        if self.feet_ctrl is not None:
-            self.ctrl.task_updater.remove( self.feet_ctrl )
-
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_ref, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
-        self.ctrl.task_updater.register( self.com_ctrl )
-
-        self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, ftraj, self.step_time, self.ratio, self.dt, start_foot, self.contact_as_objective)
-        self.ctrl.task_updater.register( self.feet_ctrl )
-
-        self.waist_rot_ctrl.set_new_trajectory( wtraj )
+        self.setControllersObjectives(zmp_ref, ftraj, wtraj)
 
         return zmp_ref
 

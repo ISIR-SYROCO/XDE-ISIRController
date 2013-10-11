@@ -109,7 +109,7 @@ ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement([-.039,-.027,-
 ref_timeline, trajz = get_sin_traj(.55, .02, 5., 0, 0, 30., dt)
 waistTraj = [ (lgsm.Displacement(0,0,z,1,0,0,0), lgsm.Twist(lgsm.vector(0,0,0,0,0,vz)), lgsm.Twist(lgsm.vector(0,0,0,0,0,az))) for z,vz,az in trajz]
 
-ctrl.task_updater.register( xic.task_controller.TrajectoryTracking(waistTask, waistTraj) )
+ctrl.updater.register( xic.task_controller.TrajectoryTracking(waistTask, waistTraj) )
 
 
 ##### OBSERVERS

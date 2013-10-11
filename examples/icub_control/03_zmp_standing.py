@@ -88,7 +88,7 @@ ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement([-.039,-.027,-
 
 ##### SET TASK CONTROLLERS
 CoMTask     = ctrl.createCoMTask("com", "XY", 10., kp=0.) #, kd=0.
-ctrl.task_updater.register( xic.task_controller.ZMPController( CoMTask, dynModel, [[-0.03,0.02]], RonQ=1e-6, horizon=1.8, dt=dt, H_0_planeXY=lgsm.Displacement(), stride=3, gravity=9.81) )
+ctrl.updater.register( xic.task_controller.ZMPController( CoMTask, dynModel, [[-0.03,0.02]], RonQ=1e-6, horizon=1.8, dt=dt, H_0_planeXY=lgsm.Displacement(), stride=3, gravity=9.81) )
 
 
 ##### OBSERVERS
