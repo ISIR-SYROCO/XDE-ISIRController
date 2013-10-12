@@ -693,7 +693,7 @@ class WalkingActivity(object):
         N = int(path_length/search_path_tolerance)
         traj = np.array([np.linspace(start[0], end[0], N), np.linspace(start[1], end[1], N), angle*np.ones(N)]).T
 
-        self.followTrajectory(traj)
+        return self.followTrajectory(traj)
 
 
     def followTrajectory(self, trajectory):

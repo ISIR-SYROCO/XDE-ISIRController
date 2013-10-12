@@ -17,7 +17,7 @@ wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 ##### ROBOT
 rname = "robot"
-robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,0,1,0,0], True, 0.001, 0.01)
+robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,0,1,0,0], True, 0.001, 0.01, use_collada_color=False)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
@@ -41,11 +41,8 @@ torqueTask = ctrl.createTorqueTask("torque", [1], 1., torque_des=lgsm.vector([0.
 
 
 ##### OBSERVERS
-import observers
-jpobs = observers.JointPositionsObserver(robot, wm.phy, wm.icsync)
-tpobs = observers.TorqueObserver(ctrl, wm.phy, wm.icsync)
-jpobs.s.start()
-tpobs.s.start()
+jpobs = ctrl.updater.register(xic.observers.JointPositionsObserver(dynModel))
+tpobs = ctrl.updater.register(xic.observers.TorqueObserver(ctrl))
 
 
 ##### SIMULATE
@@ -62,9 +59,17 @@ wm.stopAgents()
 ctrl.s.stop()
 
 
-
 ##### RESULTS
-tpobs.s.stop()
-jpobs.s.stop()
-tpobs.plot()
-jpobs.plot()
+import pylab as pl
+
+jpos = jpobs.get_record()
+pl.figure()
+pl.plot(jpos)
+
+tpos = tpobs.get_record()
+pl.figure()
+pl.plot(tpos)
+
+pl.show()
+
+

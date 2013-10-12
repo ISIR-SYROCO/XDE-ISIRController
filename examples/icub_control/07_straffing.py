@@ -108,9 +108,7 @@ walkingActivity.stayIdle()
 
 
 ##### OBSERVERS
-from observers import ZMPLIPMPositionObserver
-zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81, wm.phy, wm.icsync)
-zmplipmpobs.s.start()
+zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
 
 
 ##### SIMULATE
@@ -138,8 +136,9 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-zmplipmpobs.s.stop()
-
-zmplipmpobs.plot(zmp_ref)
-
+import pylab as pl
+zmplipm = zmplipmpobs.get_record()
+pl.plot(zmplipm)
+pl.plot(zmp_ref, ls=":")
+pl.show()
 

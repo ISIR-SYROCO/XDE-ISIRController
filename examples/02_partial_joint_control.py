@@ -17,7 +17,7 @@ wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 ##### ROBOT
 rname = "robot"
-robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,1,0,0,0], True, 0.001, 0.01)
+robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,1,0,0,0], True, 0.001, 0.01, use_collada_color=False)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
@@ -52,9 +52,7 @@ part2Task.update(gposdes, gveldes)
 
 
 ##### OBSERVERS
-import observers
-jpobs = observers.JointPositionsObserver(robot, wm.phy, wm.icsync)
-jpobs.s.start()
+jpobs = ctrl.updater.register(xic.observers.JointPositionsObserver(dynModel))
 
 
 ##### SIMULATE
@@ -73,6 +71,10 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-jpobs.s.stop()
+import pylab as pl
 
-jpobs.plot()
+jpos = jpobs.get_record()
+pl.plot(jpos)
+pl.show()
+
+

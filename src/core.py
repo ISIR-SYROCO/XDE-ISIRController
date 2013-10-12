@@ -676,6 +676,7 @@ class ISIRUpdater(xdefw.rtt.Task):
         :type  new_updater: :class:`ISIRTaskController` or :class:`ISIRObserver`
         """
         self.updaters.append(new_updater)
+        return new_updater
 
     def remove(self, old_updater):
         """ Remove a updater.

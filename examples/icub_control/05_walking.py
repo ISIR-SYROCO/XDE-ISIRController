@@ -106,9 +106,7 @@ walkingActivity.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gra
 zmp_ref = walkingActivity.goTo([.5,0.])
 
 ##### OBSERVERS
-from observers import ZMPLIPMPositionObserver
-zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81, wm.phy, wm.icsync)
-zmplipmpobs.s.start()
+zmplipmpobs = ctrl.updater.register(xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
 
 
 ##### SIMULATE
@@ -124,12 +122,13 @@ print "END OF WALKING TASK"
 wm.stopAgents()
 ctrl.s.stop()
 
-perfs = ctrl.getPerformances()
 
 ##### RESULTS
-zmplipmpobs.s.stop()
-
-#zmplipmpobs.plot(zmp_ref)
-
+perfs = ctrl.getPerformances()
 xic.performances.plot_performances(perfs)
+
+import pylab as pl
+zmplipm = zmplipmpobs.get_record()
+pl.plot(zmplipm)
+pl.show()
 

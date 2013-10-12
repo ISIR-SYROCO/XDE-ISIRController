@@ -92,9 +92,7 @@ ctrl.updater.register( xic.task_controller.ZMPController( CoMTask, dynModel, [[-
 
 
 ##### OBSERVERS
-from observers import CoMPositionObserver
-cpobs = CoMPositionObserver(dynModel, wm.phy, wm.icsync)
-cpobs.s.start()
+cpobs = ctrl.updater.register(xic.observers.CoMPositionObserver(dynModel))
 
 
 ##### SIMULATE
@@ -113,8 +111,11 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-cpobs.s.stop()
+import pylab as pl
 
-cpobs.plot()
+com = cpobs.get_record()
+pl.plot(com)
+pl.show()
+
 
 

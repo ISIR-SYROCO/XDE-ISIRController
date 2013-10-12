@@ -119,9 +119,7 @@ ctrl.updater.register( xic.task_controller.ZMPController( CoMTask, dynModel, zmp
 
 
 ##### OBSERVERS
-from observers import ZMPLIPMPositionObserver
-zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81, wm.phy, wm.icsync)
-zmplipmpobs.s.start()
+zmplipmpobs = ctrl.updater.register(xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
 
 
 ##### SIMULATE
@@ -140,8 +138,10 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-zmplipmpobs.s.stop()
+import pylab as pl
 
-zmplipmpobs.plot(zmp_traj)
+zmplipm = zmplipmpobs.get_record()
+pl.plot(zmplipm)
+pl.show()
 
 

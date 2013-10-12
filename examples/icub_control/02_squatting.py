@@ -113,9 +113,7 @@ ctrl.updater.register( xic.task_controller.TrajectoryTracking(waistTask, waistTr
 
 
 ##### OBSERVERS
-from observers import FramePoseObserver
-fpobs = FramePoseObserver(robot, rname+'.waist', lgsm.Displacement(), wm.phy, wm.icsync)
-fpobs.s.start()
+fpobs = ctrl.updater.register(xic.observers.FramePoseObserver(dynModel, rname+'.waist', lgsm.Displacement()))
 
 ##### SIMULATE
 ctrl.s.start()
@@ -132,6 +130,13 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-fpobs.s.stop()
+import pylab as pl
 
-fpobs.plot([z for z, vz, az in trajz])
+wtraj = fpobs.get_record()
+wref  = [z for z, vz, az in trajz]
+
+pl.plot(wtraj)
+pl.plot(wref, ls=":")
+pl.show()
+
+

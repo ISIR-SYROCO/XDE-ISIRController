@@ -11,7 +11,7 @@ import time
 ##### AGENTS
 dt = 0.01
 wm = xwm.WorldManager()
-wm.createAllAgents(dt, lmd_max=.1)
+wm.createAllAgents(dt, lmd_max=.01)
 wm.resizeWindow("mainWindow", 640, 480, 1000, 50)
 
 
@@ -24,7 +24,7 @@ dynModel_moving_wall = xrl.getDynamicModelFromWorld(robotWorld)
 
 
 rname = "robot"
-robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,1,0,0,0], True, 0.001, 0.01)
+robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,1,0,0,0], True, 0.001, 0.01, use_collada_color=False)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
@@ -85,9 +85,7 @@ EETask = ctrl.createForceTask("EE", "robot.07", lgsm.Displacement(), 1.0)
 EETask.update(lgsm.vector(10,0,0), True)
 
 ##### OBSERVERS
-import observers
-tpobs = observers.TorqueObserver(ctrl_moving_wall, wm.phy, wm.icsync)
-tpobs.s.start()
+tpobs = ctrl.updater.register(xic.observers.TorqueObserver(ctrl_moving_wall))
 
 ##### SIMULATE
 ctrl.s.start()
@@ -98,7 +96,7 @@ wm.phy.s.agent.triggerUpdate()
 
 #import xdefw.interactive
 #xdefw.interactive.shell_console()()
-time.sleep(10.)
+time.sleep(5.)
 
 wm.stopAgents()
 ctrl.s.stop()
@@ -106,5 +104,11 @@ ctrl_moving_wall.s.stop()
 
 
 ##### RESULTS
-tpobs.s.stop()
-tpobs.plot()
+import pylab as pl
+
+tpos = tpobs.get_record()
+pl.plot(tpos)
+
+pl.show()
+
+
