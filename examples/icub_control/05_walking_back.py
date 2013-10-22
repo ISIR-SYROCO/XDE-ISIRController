@@ -3,7 +3,6 @@
 import xde_world_manager as xwm
 import xde_robot_loader  as xrl
 import xde_resources     as xr
-import physicshelper
 import lgsm
 import time
 
@@ -32,13 +31,7 @@ robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N  = robot.getJointSpaceDim()
 
-import xde.desc.physic
-multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
-multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
-multiBodyModel.meshes.extend(robotWorld.library.meshes)
-multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
-multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
-dynModel = physicshelper.createDynamicModel(multiBodyModel)
+dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 
 ##### SET INTERACTION
@@ -108,28 +101,23 @@ walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002,1,0,0,0), weight=10., contact_as_objective=True)
 
 
-#import xdefw.interactive
-#xdefw.interactive.shell_console()()
 
 zmp_ref = walkingActivity.goTo([-0.5,0.])
 
 ##### OBSERVERS
-from observers import ZMPLIPMPositionObserver, ScreenShotObserver, lookAt
-zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81, wm.phy, wm.icsync)
-zmplipmpobs.s.start()
+zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
 
 #if fixed camera
-cam_traj = [lookAt(lgsm.vector(-2,1.5,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1))]
+cam_traj = [xic.observers.lookAt(lgsm.vector(-2,1.5,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1))]
 # or with a moving camera
 R, W, P = 2., 2*pi/7., pi/4.
 cam_traj
 for tt in lgsm.np.arange(0, 11, dt):
     x = -0.5 + R*lgsm.np.cos(tt*W+P)
     y =      + R*lgsm.np.sin(tt*W+P)
-    cam_traj.append(lookAt(lgsm.vector(x,y,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1)))
+    cam_traj.append(xic.observers.lookAt(lgsm.vector(x,y,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1)))
 
-screenobs = ScreenShotObserver(wm, "rec", cam_traj=cam_traj)
-screenobs.s.start()
+screenobs = ctrl.updater.register(xic.observers.ScreenShotObserver(wm, "rec", cam_traj=cam_traj))
 
 
 ##### SIMULATE
@@ -150,10 +138,10 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-screenobs.s.stop()
-
-zmplipmpobs.s.stop()
-
-zmplipmpobs.plot(zmp_ref)
+import pylab as pl
+zmplipm = zmplipmpobs.get_record()
+pl.plot(zmplipm)
+pl.plot(zmp_ref, ls=":")
+pl.show()
 
 

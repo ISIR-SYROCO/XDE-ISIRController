@@ -30,6 +30,8 @@ class ISIRCtrl(xdefw.rtt.Task):
     """ Proxy of orcisir_ISIRController.
     """
 
+    _NBISIRCTRL = 0
+
     def __init__(self, libdir, dynamic_model, robot_name, physic_agent, sync_connector=None, solver="quadprog", reduced_problem=False, multi_level=False, createFunctionName="Create"):
         """ Instantiate proxy of controller.
         
@@ -45,10 +47,13 @@ class ISIRCtrl(xdefw.rtt.Task):
         :param string createFunctionName: if ``dynamic_model`` is a string, it means that we try to load a shared library,
                                           and ``createFunctionName`` is the name of the function to call to create the ISIRModel.
         """
-        orocos_ICTask = ddeployer.load("oIT", "XDE_ISIRController",
+        oiname = "oISIRController"+str(ISIRCtrl._NBISIRCTRL)
+        orocos_ICTask = ddeployer.load(oiname, "XDE_ISIRController",
                                        module="XDE-ISIRController-gnulinux", prefix="",
                                        libdir=libdir)
         super(ISIRCtrl, self).__init__(orocos_ICTask)
+        
+        ISIRCtrl._NBISIRCTRL += 1
         
         self.physicTimeStep = physic_agent.s.GVM("main").Scene.getTimeStep()
         self.robot_name = robot_name
@@ -87,10 +92,10 @@ class ISIRCtrl(xdefw.rtt.Task):
             sync_connector.addEvent(robotPrefix+"tau")
         self.getPort("tau").connectTo(physic_agent.getPort(robotPrefix+"tau"))
 
-        self.task_updater = ISIRTaskUpdater()
-        self.getPort("tasks_to_update").connectTo(self.task_updater.getPort("ctrl_trigger"))
-        self.task_updater.getPort("tasks_updated").connectTo(self.getPort("tasks_updated"))
-        self.task_updater.s.start()
+        self.updater = ISIRUpdater()
+        self.getPort("tasks_to_update").connectTo(self.updater.getPort("ctrl_trigger"))
+        self.updater.getPort("tasks_updated").connectTo(self.getPort("tasks_updated"))
+        self.updater.s.start()
 
 
     ########################################################################
@@ -168,7 +173,7 @@ class ISIRCtrl(xdefw.rtt.Task):
                           if the robot has a fixed base, "INTERNAL" and "FULL_STATE" are equivalent
         """
         index = self.s.createFullTask(name, whichPart)
-        return ISIRTask(self, name, index, ISIRTask.FULLTASK, weight, **kwargs)
+        return ISIRFullTask(self, name, index, weight, **kwargs)
 
     def createPartialTask(self, name, dofs, weight=1., **kwargs):
         """ Create a task that control some state of the model.
@@ -194,7 +199,7 @@ class ISIRCtrl(xdefw.rtt.Task):
                 dofs_index.append(self.NDOF0 + d_idx)
 
         index = self.s.createPartialTask(name, dofs_index)
-        return ISIRTask(self, name, index, ISIRTask.PARTIALTASK, weight, **kwargs)
+        return ISIRPartialTask(self, name, index, weight, **kwargs)
 
     def createFrameTask(self, name, segmentName, H_segment_frame, dofs, weight=1., **kwargs):
         """ Create a task that control a frame of the model.
@@ -214,7 +219,7 @@ class ISIRCtrl(xdefw.rtt.Task):
         
         """
         index = self.s.createFrameTask(name, segmentName, lgsm.Displacement(H_segment_frame), dofs.upper())
-        return ISIRTask(self, name, index, ISIRTask.FRAMETASK, weight, **kwargs)
+        return ISIRFrameTask(self, name, index, weight, **kwargs)
 
     def createCoMTask(self, name, dofs, weight=1., **kwargs):
         """ Create a task that control the Center of Mass (CoM) of the model.
@@ -231,7 +236,7 @@ class ISIRCtrl(xdefw.rtt.Task):
         
         """
         index = self.s.createCoMTask(name, dofs.upper())
-        return ISIRTask(self, name, index, ISIRTask.COMTASK, weight, **kwargs)
+        return ISIRCoMTask(self, name, index, weight, **kwargs)
 
     def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., **kwargs):
         """ Create a task for frictional interaction with the environment.
@@ -249,7 +254,47 @@ class ISIRCtrl(xdefw.rtt.Task):
         
         """
         index = self.s.createContactTask(name, segmentName, lgsm.Displacement(H_segment_frame), mu, margin)
-        return ISIRTask(self, name, index, ISIRTask.CONTACTTASK, weight, **kwargs)
+        return ISIRContactTask(self, name, index, weight, **kwargs)
+
+    def createTorqueTask(self, name, dofs, weight=1., **kwargs):
+        """ Create a task that control some input torque of the model.
+        
+        Generally, to control in torque a particular subset of the robot, e.g. the arm, the leg, the spine...
+        
+        :param string name: the **unique name** (id) of the task
+        :param list dofs: list of int (segment index) or string (segment name) corresponding to the controlled internal dofs.
+        :param double weight: the task weight for control trade-off when some tasks are conflicting
+        :param kwargs: some keyword arguments to quickly initialize task. See initialization of :class:`ISIRTask` for more info.
+        
+        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
+        
+        """
+        dofs_index = []
+        for d in dofs:
+            if isinstance(d, int):
+                dofs_index.append(d)
+            else:
+                d_idx = self.dynamic_model.getSegmentIndex(d)
+                dofs_index.append(d_idx)
+
+        index = self.s.createTorqueTask(name, dofs_index)
+        return ISIRTorqueTask(self, name, index, weight, **kwargs)
+
+    def createForceTask(self, name, segmentName, H_segment_frame, weight=1., **kwargs):
+        """ Create a task for generating an interaction force with the environment.
+        
+        :param string name: the **unique name** (id) of the task
+        :param string segmentName: the segment name that is rigidly linked with the contact frame
+        :param H_segment_frame: the displacement from the origin of the segment to the frame
+        :type  H_segment_frame: :class:`lgsm.Displacement`
+        :param double weight: the task weight for control trade-off when some tasks are conflicting
+        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
+        
+        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
+        
+        """
+        index = self.s.createForceTask(name, segmentName, lgsm.Displacement(H_segment_frame))
+        return ISIRForceTask(self, name, index, weight, **kwargs)
 
 
 
@@ -318,13 +363,7 @@ class ISIRTask(object):
     
     """
     
-    FULLTASK    = "fullTask"
-    PARTIALTASK = "partialTask"
-    FRAMETASK   = "frameTask"
-    COMTASK     = "CoMTask"
-    CONTACTTASK = "contactTask"
-    
-    def __init__(self, ctrl, name, index, taskType, weight=1., **kwargs):
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
         """ Instantiate a proxy of an ISIRTask.
         
         Warning: when creating this proxy the task must have been registred by the controller before.
@@ -332,9 +371,6 @@ class ISIRTask(object):
         :param ctrl: the controller in which the task has been registered
         :type  ctrl: :class:`ISIRCtrl`
         :param string name: the **unique name** (id) of the task
-        :param taskType: the type of the task, which can be one of the following:
-                         :attr:`ISIRTask.FULLTASK`, :attr:`ISIRTask.PARTIALTASK`, :attr:`ISIRTask.FRAMETASK`, :attr:`ISIRTask.COMTASK`, :attr:`ISIRTask.CONTACTTASK`
-        :type  taskType: :attr:`ISIRTask.TYPE`
         :param double weight: the task weight for control trade-off when some tasks are conflicting
         
         :param kwargs: some keyword arguments can be pass to quickly initialize task parameters.
@@ -345,37 +381,12 @@ class ISIRTask(object):
         self.ctrl     = ctrl
         self.name     = name
         self.index    = index
-        self.taskType = taskType
         
         print "init TASK", name, ":", index
         
         self.setWeight(weight)
         
         self.dimension = self.ctrl.s.getTaskDimension(self.index)
-        
-        self.updateTaskFunction = None
-        self.null_pos_des       = None
-        self.null_vel_des       = None
-        
-        if taskType   == self.FULLTASK:
-            self.updateTaskFunction = self.ctrl.s.updateFullTask
-            self.null_pos_des       = lgsm.zero(self.dimension)
-            self.null_vel_des       = lgsm.zero(self.dimension)
-
-        elif taskType == self.PARTIALTASK:
-            self.updateTaskFunction = self.ctrl.s.updatePartialTask 
-            self.null_pos_des       = lgsm.zero(self.dimension)
-            self.null_vel_des       = lgsm.zero(self.dimension)
-
-        elif taskType == self.FRAMETASK:
-            self.updateTaskFunction = self.ctrl.s.updateFrameTask
-            self.null_pos_des       = lgsm.Displacement()
-            self.null_vel_des       = lgsm.Twist()
-
-        elif taskType == self.COMTASK:
-            self.updateTaskFunction = self.ctrl.s.updateCoMTask
-            self.null_pos_des       = lgsm.Displacement()
-            self.null_vel_des       = lgsm.Twist()
 
         #treat kwargs arguments
         if ("level" in kwargs):
@@ -385,12 +396,6 @@ class ISIRTask(object):
             kp = kwargs["kp"] if "kp" in kwargs else 0.
             kd = kwargs["kd"] if "kd" in kwargs else None
             self.setKpKd(kp, kd)
-
-        if ("pos_des" in kwargs) or ("vel_des" in kwargs) or ("acc_des" in kwargs):
-            pos_des = kwargs["pos_des"] if "pos_des" in kwargs else self.null_pos_des
-            vel_des = kwargs["vel_des"] if "vel_des" in kwargs else self.null_vel_des
-            acc_des = kwargs["acc_des"] if "acc_des" in kwargs else self.null_vel_des
-            self.update(pos_des, vel_des, acc_des)
 
 
     def setKpKd(self, kp, kd=None):
@@ -424,26 +429,6 @@ class ISIRTask(object):
         """ Deactive objectives and constraints linked to the task """
         self.ctrl.s.deactivateTask(self.index)
 
-    def update(self, posDes, velDes=None, accDes=None):
-        """ Update the desired values tracked by the task.
-        
-        :param posDes: a representation of the desired pose, depending on the taskType
-        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
-        :param velDes: a representation of the desired velocity, depending on the taskType
-        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        :param accDes: a representation of the reference acceleration, depending on the taskType.
-        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        
-        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
-        
-        """
-        if velDes is None:
-            velDes = self.null_vel_des
-        if accDes is None:
-            accDes = self.null_vel_des
-        self.updateTaskFunction(self.index, posDes, velDes, accDes)
-
-
     def getError(self):
         """ get the tracking proportional error (the position error).
         
@@ -467,6 +452,176 @@ class ISIRTask(object):
         
         """
         return self.ctrl.s.getTaskComputedForce(self.index)
+
+
+
+
+class ISIRAccelerationTask(ISIRTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
+
+    def init_update(self, **kwargs):
+        if ("pos_des" in kwargs) or ("vel_des" in kwargs) or ("acc_des" in kwargs):
+            pos_des = kwargs["pos_des"] if "pos_des" in kwargs else None
+            vel_des = kwargs["vel_des"] if "vel_des" in kwargs else None
+            acc_des = kwargs["acc_des"] if "acc_des" in kwargs else None
+            if "twistsExpressedInWorld" in kwargs:
+                self.update(pos_des, vel_des, acc_des, kwargs["twistsExpressedInWorld"])
+            else:
+                self.update(pos_des, vel_des, acc_des)
+
+
+class ISIRFullTask(ISIRAccelerationTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
+        self.null_pos_des       = lgsm.zero(self.dimension)
+        self.null_vel_des       = lgsm.zero(self.dimension)
+        self.init_update(**kwargs)
+
+    def update(self, posDes=None, velDes=None, accDes=None):
+        """ Update the desired values tracked by the task.
+        
+        :param posDes: a representation of the desired pose, depending on the taskType
+        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
+        :param velDes: a representation of the desired velocity, depending on the taskType
+        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        :param accDes: a representation of the reference acceleration, depending on the taskType.
+        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        
+        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
+        
+        """
+        if posDes is None:
+            posDes = self.null_pos_des
+        if velDes is None:
+            velDes = self.null_vel_des
+        if accDes is None:
+            accDes = self.null_vel_des
+        self.ctrl.s.updateFullTask(self.index, posDes, velDes, accDes)
+
+
+
+class ISIRPartialTask(ISIRAccelerationTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
+        self.null_pos_des       = lgsm.zero(self.dimension)
+        self.null_vel_des       = lgsm.zero(self.dimension)
+        self.init_update(**kwargs)
+
+    def update(self, posDes=None, velDes=None, accDes=None):
+        """ Update the desired values tracked by the task.
+        
+        :param posDes: a representation of the desired pose, depending on the taskType
+        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
+        :param velDes: a representation of the desired velocity, depending on the taskType
+        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        :param accDes: a representation of the reference acceleration, depending on the taskType.
+        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        
+        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
+        
+        """
+        if posDes is None:
+            posDes = self.null_pos_des
+        if velDes is None:
+            velDes = self.null_vel_des
+        if accDes is None:
+            accDes = self.null_vel_des
+        self.ctrl.s.updatePartialTask(self.index, posDes, velDes, accDes)
+
+
+class ISIRFrameTask(ISIRAccelerationTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
+        self.null_pos_des       = lgsm.Displacement()
+        self.null_vel_des       = lgsm.Twist()
+        self.init_update(**kwargs)
+
+    def update(self, posDes=None, velDes=None, accDes=None, twistsExpressedInWorld=True):
+        """ Update the desired values tracked by the task.
+        
+        :param posDes: a representation of the desired pose, depending on the taskType
+        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
+        :param velDes: a representation of the desired velocity, depending on the taskType
+        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        :param accDes: a representation of the reference acceleration, depending on the taskType.
+        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        :param bool twistsExpressedInWorld: Whether velDes & accDes are expressed in world/ground frame (then True), or in posDes frame (then False)
+        
+        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
+        
+        """
+        if posDes is None:
+            posDes = self.null_pos_des
+        if velDes is None:
+            velDes = self.null_vel_des
+        if accDes is None:
+            accDes = self.null_vel_des
+        self.ctrl.s.updateFrameTask(self.index, posDes, velDes, accDes, twistsExpressedInWorld)
+
+
+class ISIRCoMTask(ISIRAccelerationTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
+        self.null_pos_des       = lgsm.Displacement()
+        self.null_vel_des       = lgsm.Twist()
+        self.init_update(**kwargs)
+
+    def update(self, posDes=None, velDes=None, accDes=None, twistsExpressedInWorld=True):
+        """ Update the desired values tracked by the task.
+        
+        :param posDes: a representation of the desired pose, depending on the taskType
+        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
+        :param velDes: a representation of the desired velocity, depending on the taskType
+        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        :param accDes: a representation of the reference acceleration, depending on the taskType.
+        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
+        :param bool twistsExpressedInWorld: Whether velDes & accDes are expressed in world/ground frame (then True), or in posDes frame (then False)
+        
+        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
+        
+        """
+        if posDes is None:
+            posDes = self.null_pos_des
+        if velDes is None:
+            velDes = self.null_vel_des
+        if accDes is None:
+            accDes = self.null_vel_des
+        self.ctrl.s.updateCoMTask(self.index, posDes, velDes, accDes, twistsExpressedInWorld)
+
+
+class ISIRContactTask(ISIRTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
+
+
+class ISIRTorqueTask(ISIRTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
+
+        if "torque_des" in kwargs:
+            self.update(kwargs["torque_des"])
+
+    def update(self, torqueDes):
+        self.ctrl.s.updateTorqueTask(self.index, torqueDes)
+
+
+class ISIRForceTask(ISIRTask):
+
+    def __init__(self, ctrl, name, index, weight=1., **kwargs):
+        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
+
+    def update(self, forceDes, forceExpressedInWorld=True):
+        self.ctrl.s.updateForceTask(self.index, forceDes, forceExpressedInWorld)
+
+
 
 
 ################################################################################
@@ -494,8 +649,8 @@ class ISIRTaskController(object):
         pass
 
 
-class ISIRTaskUpdater(xdefw.rtt.Task):
-    """ Regroups every classes that inherit from :class:`ISIRTaskController`.
+class ISIRUpdater(xdefw.rtt.Task):
+    """ Regroups every classes that inherit from :class:`ISIRTaskController` or :class:`ISIRObserver`.
     """
 
     def __init__(self):
@@ -508,34 +663,34 @@ class ISIRTaskUpdater(xdefw.rtt.Task):
           all update methods have finished.
         
         """
-        super(ISIRTaskUpdater, self).__init__(rtt_interface.PyTaskFactory.CreateTask("ISIRTaskUpdater"))
+        super(ISIRUpdater, self).__init__(rtt_interface.PyTaskFactory.CreateTask("ISIRUpdater"))
 
-        self.in_ctrl_trigger_port  = self.addCreateInputPort("ctrl_trigger",   "int", True)
-        self.out_task_updated_port = self.addCreateOutputPort("tasks_updated", "int")
+        self.in_ctrl_trigger_port = self.addCreateInputPort("ctrl_trigger",   "int", True)
+        self.out_updated_port     = self.addCreateOutputPort("tasks_updated", "int")
 
 
-    def register(self, new_task_controller):
-        """ Register a new task controller.
+    def register(self, new_updater):
+        """ Register a new updater.
         
-        :param new_task_controller: the task controller to register
-        :type  new_task_controller: :class:`ISIRTaskController`
+        :param new_updater: the updater to register
+        :type  new_updater: :class:`ISIRTaskController` or :class:`ISIRObserver`
         """
-        assert( isinstance(new_task_controller, ISIRTaskController) )
-        self.task_controllers.append(new_task_controller)
+        self.updaters.append(new_updater)
+        return new_updater
 
-    def remove(self, old_task_controller):
-        """ Remove a task controller.
+    def remove(self, old_updater):
+        """ Remove a updater.
         
-        :param old_task_controller: the task controller to remove
-        :type  old_task_controller: :class:`ISIRTaskController`
+        :param old_updater: the updater to remove
+        :type  old_updater: :class:`ISIRTaskController` or :class:`ISIRObserver`
         
         """
-        self.task_controllers.remove(old_task_controller)
+        self.updaters.remove(old_updater)
 
     def startHook(self):
-        """ Start hook. It just creates a new list of task controllers.
+        """ Start hook. It just creates a new list of updaters.
         """
-        self.task_controllers = []
+        self.updaters = []
 
     def stopHook(self):
         """ Stop hook. Actually it does nothing.
@@ -546,15 +701,16 @@ class ISIRTaskUpdater(xdefw.rtt.Task):
         """ Start hook.
         
         When the "ctrl_trigger" port receives a tick, it updates all the registered
-        task controllers. When all done, it writes back the tick in the "tasks_updated" port.
+        updaters. When all done, it writes back the tick in the "tasks_updated" port.
         
         """
         tick, tick_ok = self.in_ctrl_trigger_port.read()
         if tick_ok:
-            for t_ctrl in self.task_controllers:    #TODO: should be parallelized
-                t_ctrl.update(tick)
+            for updt in self.updaters:    #TODO: should be parallelized
+                updt.update(tick)
 
-            self.out_task_updated_port.write(tick)  #all task updates done
+            self.out_updated_port.write(tick)  #all task updates done
+
 
 
 

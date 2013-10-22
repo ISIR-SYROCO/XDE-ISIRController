@@ -3,7 +3,6 @@
 import xde_world_manager as xwm
 import xde_robot_loader  as xrl
 import xde_resources     as xr
-import physicshelper
 import lgsm
 import time
 
@@ -49,13 +48,7 @@ robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N  = robot.getJointSpaceDim()
 
-import xde.desc.physic
-multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
-multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
-multiBodyModel.meshes.extend(robotWorld.library.meshes)
-multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
-multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
-dynModel = physicshelper.createDynamicModel(multiBodyModel)
+dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 
 ##### SET INTERACTION
@@ -116,13 +109,11 @@ ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement([-.039,-.027,-
 ref_timeline, trajz = get_sin_traj(.55, .02, 5., 0, 0, 30., dt)
 waistTraj = [ (lgsm.Displacement(0,0,z,1,0,0,0), lgsm.Twist(lgsm.vector(0,0,0,0,0,vz)), lgsm.Twist(lgsm.vector(0,0,0,0,0,az))) for z,vz,az in trajz]
 
-ctrl.task_updater.register( xic.task_controller.TrajectoryTracking(waistTask, waistTraj) )
+ctrl.updater.register( xic.task_controller.TrajectoryTracking(waistTask, waistTraj) )
 
 
 ##### OBSERVERS
-from observers import FramePoseObserver
-fpobs = FramePoseObserver(robot, rname+'.waist', lgsm.Displacement(), wm.phy, wm.icsync)
-fpobs.s.start()
+fpobs = ctrl.updater.register(xic.observers.FramePoseObserver(dynModel, rname+'.waist', lgsm.Displacement()))
 
 ##### SIMULATE
 ctrl.s.start()
@@ -139,6 +130,13 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-fpobs.s.stop()
+import pylab as pl
 
-fpobs.plot([z for z, vz, az in trajz])
+wtraj = fpobs.get_record()
+wref  = [z for z, vz, az in trajz]
+
+pl.plot(wtraj)
+pl.plot(wref, ls=":")
+pl.show()
+
+

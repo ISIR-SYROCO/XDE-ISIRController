@@ -8,8 +8,6 @@ import time
 
 pi = lgsm.np.pi
 
-
-
 ##### AGENTS
 dt = 0.01
 wm = xwm.WorldManager()
@@ -25,7 +23,7 @@ wm.addWorld(groundWorld)
 ##### ROBOT
 rname = "robot"
 fixed_base = False
-robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [0,0,0.6,1,0,0,0], fixed_base, .001, 0.001)
+robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [0,0,0.6,1,0,0,0], fixed_base, 0.001, 0.001)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
@@ -58,41 +56,26 @@ ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync,
 
 
 ##### SET TASKS
-# this ...
-#N0 = 6 if fixed_base is False else 0
-#partialTask = ctrl.createPartialTask("partial", range(N0, N+N0), 0.0001, kp=9., pos_des=qinit)
-# ... is equivalent to that:
-fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
-
-waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
-
+fullTask = ctrl.createFullTask("full", 0.0001, "INTERNAL", kp=9., pos_des=qinit)
+waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RXYZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
 back_name   = [rname+"."+n for n in ['lap_belt_1', 'lap_belt_2', 'chest']]
 backTask    = ctrl.createPartialTask("back", back_name, 0.001, kp=16., pos_des=lgsm.zeros(3))
-
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
 RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
 RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
 
-ctrl.createContactTask("CLF0", rname+".l_foot", lgsm.Displacement([-.039,-.027,-.031]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF1", rname+".l_foot", lgsm.Displacement([-.039, .027,-.031]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF2", rname+".l_foot", lgsm.Displacement([-.039, .027, .099]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CLF3", rname+".l_foot", lgsm.Displacement([-.039,-.027, .099]+ RotLZdown.tolist()), 1.5, 0.) # mu, margin
 
-ctrl.createContactTask("CRF0", rname+".r_foot", lgsm.Displacement([-.039,-.027, .031]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF1", rname+".r_foot", lgsm.Displacement([-.039, .027, .031]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF2", rname+".r_foot", lgsm.Displacement([-.039, .027,-.099]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
-ctrl.createContactTask("CRF3", rname+".r_foot", lgsm.Displacement([-.039,-.027,-.099]+ RotRZdown.tolist()), 1.5, 0.) # mu, margin
-
-
-
-##### SET TASK CONTROLLERS
-CoMTask     = ctrl.createCoMTask("com", "XY", 10., kp=0.) #, kd=0.
-ctrl.updater.register( xic.task_controller.ZMPController( CoMTask, dynModel, [[-0.03,0.02]], RonQ=1e-6, horizon=1.8, dt=dt, H_0_planeXY=lgsm.Displacement(), stride=3, gravity=9.81) )
-
-
-##### OBSERVERS
-cpobs = ctrl.updater.register(xic.observers.CoMPositionObserver(dynModel))
+i=0
+l_contacts = []
+r_contacts = []
+for y in [-.027, .027]:
+    for z in [-.031, .099]:
+        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5, 0.) # mu, margin
+        l_contacts.append(ct)
+        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5, 0.) # mu, margin
+        r_contacts.append(ct)
+        i+=1
 
 
 ##### SIMULATE
@@ -101,21 +84,14 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import xdefw.interactive
-#xdefw.interactive.shell_console()()
-time.sleep(10.)
+
+for i in range(1000):
+    for t in l_contacts+r_contacts:
+        print t.name, t.getComputedForce().transpose() # the force should be expressed in the task space
+    time.sleep(.1)
+
 
 wm.stopAgents()
 ctrl.s.stop()
-
-
-
-##### RESULTS
-import pylab as pl
-
-com = cpobs.get_record()
-pl.plot(com)
-pl.show()
-
 
 

@@ -12,7 +12,7 @@ pi = lgsm.np.pi
 ##### AGENTS
 dt = 0.01
 wm = xwm.WorldManager()
-wm.createAllAgents(dt, lmd_max=.01, uc_relaxation_factor=0.01)
+wm.createAllAgents(time_step=dt*0.1, dt=dt, lmd_max=.1, uc_relaxation_factor=0.01)
 wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 
@@ -51,28 +51,22 @@ robot.setJointVelocities(lgsm.zeros(N))
 dynModel.setJointVelocities(lgsm.zeros(N))
 
 
-
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", False)
+ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
-ctrl.setTorqueLimits( 150.*lgsm.np.ones(N) )
+ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
 ctrl.setJointLimitsHorizonOfPrediction(.2)
-ctrl.enableJointLimits(False)
-#Warning: joint limits have been changed
-robot.setJointPositionsMin(-10*lgsm.ones(N))
-robot.setJointPositionsMax(+10*lgsm.ones(N))
+ctrl.enableJointLimits(True)
 
 ##### SET TASKS
 fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
 
-#waistTask   = ctrl.createFrameTask("waist",   rname+'.waist', lgsm.Displacement(), "R", 1.0, kp=25., pos_des=lgsm.Displacement(0,0,.56,0,0,0,1))
-#waistTaskUp = ctrl.createFrameTask("waistUP", rname+'.waist', lgsm.Displacement(), "Z", 1.0, kp=25., pos_des=lgsm.Displacement(0,0,.56,0,0,0,1))
+#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), "RZ", 10.0, kp=25., pos_des=lgsm.Displacement(0,0,.58))
 
 back_name   = [rname+"."+n for n in ['lap_belt_1', 'lap_belt_2', 'chest']]
-backTask    = ctrl.createPartialTask("back", back_name, 1.0, kp=25., pos_des=lgsm.zeros(3))
+backTask    = ctrl.createPartialTask("back", back_name, 0.01, kp=25., pos_des=lgsm.zeros(3))
 
-#kneeTask   = ctrl.createFrameTask("Rknee", rname+'.l_shank', lgsm.Displacement(), "Z", 0., kp=4., pos_des=lgsm.Displacement(0,0,.15))
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
 RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
@@ -102,15 +96,18 @@ H_rf_sole = lgsm.Displacement([-.039, 0,-.034]+RotRZdown.tolist() )
 walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
-                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.56,1,0,0,0),
+                                    rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), lgsm.Displacement(0,0,.58,1,0,0,0),
                                     H_0_planeXY=lgsm.Displacement(0,0,0.002,1,0,0,0), weight=10., contact_as_objective=True)
 
+walkingActivity.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81, height_ref=0.58, updatePxPu=1e-3, use_swig_zmpy=True)
+#walkingTask.stayIdle()
 
-walkingActivity.stayIdle()
 
+zmp_ref = walkingActivity.goTo([.5,0.])
 
 ##### OBSERVERS
-zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
+zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81) )
+zmppobs     = ctrl.updater.register( xic.observers.ZMPPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81) )
 
 
 ##### SIMULATE
@@ -119,32 +116,33 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import xdefw.interactive
-#xdefw.interactive.shell_console()()
-time.sleep(0.)
-
-walkingActivity.set_step_parameters(length=.05, side=.1, height=.02, time=1, ratio=.9, start_foot="left")
-zmp_ref = walkingActivity.moveOneFoot("left", .18, .05, angle=0)
-
 
 walkingActivity.wait_for_end_of_walking()
-print "END OF STEP"
-
-walkingActivity.set_waist_altitude(lgsm.Displacement(0,0,.45,1,0,0,0))
-
-
-time.sleep(5.)
+print "END OF WALKING TASK"
 
 wm.stopAgents()
 ctrl.s.stop()
 
 
-
 ##### RESULTS
+perfs = ctrl.getPerformances()
+xic.performances.plot_performances(perfs, "perf_11.pdf")
+
 import pylab as pl
-zmplipm = zmplipmpobs.get_record()
-pl.plot(zmplipm)
-pl.plot(zmp_ref, ls=":")
+zmplipm = lgsm.np.array(zmplipmpobs.get_record())
+zmp     = lgsm.np.array(zmppobs.get_record())
+
+pl.figure()
+pl.plot(zmp_ref, ls="-.")
+pl.plot(zmplipm, ls=":")
+pl.plot(zmp)
+
+pl.figure()
+pl.plot(zmp_ref[0,:], zmp_ref[1,:], ls="-.")
+pl.plot(zmplipm[:,0], zmplipm[:,1], ls=":")
+pl.plot(zmp[:,0], zmp[:,1], color="r")
+
 pl.show()
+
 
 

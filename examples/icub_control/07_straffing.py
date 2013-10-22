@@ -3,7 +3,6 @@
 import xde_world_manager as xwm
 import xde_robot_loader  as xrl
 import xde_resources     as xr
-import physicshelper
 import lgsm
 import time
 
@@ -31,13 +30,7 @@ robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
 N  = robot.getJointSpaceDim()
 
-import xde.desc.physic
-multiBodyModel = xde.desc.physic.physic_pb2.MultiBodyModel()
-multiBodyModel.kinematic_tree.CopyFrom(robotWorld.scene.physical_scene.nodes[0])
-multiBodyModel.meshes.extend(robotWorld.library.meshes)
-multiBodyModel.mechanism.CopyFrom(robotWorld.scene.physical_scene.mechanisms[0])
-multiBodyModel.composites.extend(robotWorld.scene.physical_scene.collision_scene.meshes)
-dynModel = physicshelper.createDynamicModel(multiBodyModel)
+dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 
 ##### SET INTERACTION
@@ -115,9 +108,7 @@ walkingActivity.stayIdle()
 
 
 ##### OBSERVERS
-from observers import ZMPLIPMPositionObserver
-zmplipmpobs = ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81, wm.phy, wm.icsync)
-zmplipmpobs.s.start()
+zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
 
 
 ##### SIMULATE
@@ -145,8 +136,9 @@ ctrl.s.stop()
 
 
 ##### RESULTS
-zmplipmpobs.s.stop()
-
-zmplipmpobs.plot(zmp_ref)
-
+import pylab as pl
+zmplipm = zmplipmpobs.get_record()
+pl.plot(zmplipm)
+pl.plot(zmp_ref, ls=":")
+pl.show()
 
