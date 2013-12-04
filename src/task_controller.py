@@ -61,7 +61,7 @@ class ZMPController(ISIRTaskController):
     
     """
 
-    def __init__(self, comtask, dyn_model, goal, RonQ, horizon, dt, H_0_planeXY, stride=1, gravity=9.81, height=0.0, updatePxPu=True, use_swig_zmpy=True):
+    def __init__(self, comtask, dyn_model, goal, RonQ, horizon, dt, H_0_planeXY, stride=1, gravity=9.81, height=0.0, updatePxPu=True):
         """
         :param comtask: The CoM task of the standing/walking robot to control
         :type  comtask: :class:`~core.ISIRTask`
@@ -79,7 +79,6 @@ class ZMPController(ISIRTaskController):
         :param double height: The reference height of the CoM
         :param updatePxPu: Whether to update ZMP matrices, mainly if CoM changes
         :type  updatePxPu: bool or float
-        :param bool use_swig_zmpy: Whether to use a swig (True) or a python (False) computation of the ZMP matrices
         
         If `updatePxPu` is set to:
         
@@ -88,16 +87,13 @@ class ZMPController(ISIRTaskController):
         * float (a tolerance), then if the reference height move beyond this `tolerance`, the matrices are updated and the new height becomes the reference
 
         """
-        import xde_zmpy
+        import zmpy_python
         
         self.comtask = comtask
         self.dm      = dyn_model
-        
-        if use_swig_zmpy:
-            self.zmp_ctrl = xde_zmpy.zmpy_swig.ZMPController(horizon, dt, RonQ, stride, gravity, height)
-        else:
-            self.zmp_ctrl = xde_zmpy.zmpy_python.ZMPController(horizon, dt, RonQ, stride, gravity, height)
-        
+
+        self.zmp_ctrl = zmpy_python.ZMPController(horizon, dt, RonQ, stride, gravity, height)
+
         self.zmp_ctrl.setGoal(goal)
         
         self._dt = dt

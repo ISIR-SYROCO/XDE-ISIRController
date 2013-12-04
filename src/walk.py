@@ -541,7 +541,7 @@ class WalkingActivity(object):
             orientation = [[orientation]]
         self.waist_rot_ctrl.set_new_trajectory( orientation )
 
-    def set_zmp_control_parameters(self, RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81, height_ref=0.0, updatePxPu=True, use_swig_zmpy=True):
+    def set_zmp_control_parameters(self, RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81, height_ref=0.0, updatePxPu=True):
         """ Set the parameters for the ZMP control.
         
         :param double RonQ: the ratio between the tracking of the control vector and the tracking of the state vector
@@ -550,7 +550,6 @@ class WalkingActivity(object):
         :param double gravity: The amplitude of the gravity vector
         :param double height_ref: The reference CoM height, to compute the ZMP preview control matrices, if they are not updated at each time step
         :param bool updatePxPu: Whether to update ZMP matrices, mainly if CoM changes (see below)
-        :param bool use_swig_zmpy: Whether to use a swig (True) or a python (False) computation of the ZMP matrices
         
         If `updatePxPu` is set to:
         
@@ -565,7 +564,6 @@ class WalkingActivity(object):
         self.gravity       = gravity
         self.height_ref    = height_ref
         self.updatePxPu    = updatePxPu
-        self.use_swig_zmpy = use_swig_zmpy
 
     def set_step_parameters(self, length=.1, side=.05, height=.01, time=1, ratio=.9, start_foot="left"):
         """ Set the parameters for the footsteps, to parameterize the feet trajectories.
@@ -639,7 +637,7 @@ class WalkingActivity(object):
         if self.feet_ctrl is not None:
             self.ctrl.updater.remove( self.feet_ctrl )
 
-        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_traj, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu, self.use_swig_zmpy)
+        self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_traj, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu)
         self.ctrl.updater.register( self.com_ctrl )
 
         if feet_trajs is not None:
