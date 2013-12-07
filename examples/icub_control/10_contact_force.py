@@ -52,14 +52,14 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 
 
 ##### SET TASKS
-fullTask = ctrl.createFullTask("full", 0.0001, "INTERNAL", kp=9., pos_des=qinit)
-waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RXYZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
+fullTask = ctrl.createFullTask("full", w=0.0001, kp=9., q_des=qinit)
+waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RXYZ", w=1., kp=36., pose_des=lgsm.Displacement(0,0,.58,1,0,0,0))
 back_dofs   = [jmap[rname+"."+n] for n in ['torso_pitch', 'torso_roll', 'torso_yaw']]
-backTask    = ctrl.createPartialTask("back", back_dofs, 0.001, kp=16., pos_des=lgsm.zeros(3))
+backTask    = ctrl.createPartialTask("back", back_dofs, w=0.001, kp=16., q_des=lgsm.zeros(3))
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
 RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,1.0,0.0,0.0)
@@ -71,9 +71,9 @@ l_contacts = []
 r_contacts = []
 for y in [-.027, .027]:
     for z in [-.031, .099]:
-        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5)
         l_contacts.append(ct)
-        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5)
         r_contacts.append(ct)
         i+=1
 
@@ -87,7 +87,7 @@ wm.phy.s.agent.triggerUpdate()
 
 for i in range(1000):
     for t in l_contacts+r_contacts:
-        print t.name, t.getComputedForce().transpose() # the force should be expressed in the task space
+        print t.getName(), t.getComputedForce().transpose() # the force should be expressed in the task space
     time.sleep(.1)
 
 

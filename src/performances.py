@@ -54,9 +54,9 @@ def plot_performances( perf , outfile="./performances.pdf"):
         with open(perf, "r") as f:
             perf = json.load(f)
     timeline        = np.array(perf['timeline'])*1000.0
-    model_update    = np.array(perf["orocos_model_update"])*1000.0 
-    tasks_update    = np.array(perf["orocos_tasks_update"])*1000.0
-    compute_output  = np.array(perf["orocos_compute_output"])*1000.0
+    model_update    = np.array(perf["model_update"])*1000.0 
+    tasks_update    = np.array(perf["updaters_update"])*1000.0
+    compute_output  = np.array(perf["compute_output"])*1000.0
     ctrl_up_tasks   = np.array(perf["controller_update_tasks"])*1000.0
     ctrl_solve      = np.array(perf["controller_solve_problem"])*1000.0
     solver_prepare  = np.array(perf["solver_prepare"])*1000.0
@@ -82,7 +82,7 @@ def plot_performances( perf , outfile="./performances.pdf"):
     pl.subplot(3,1,1)
     plot_perf(step_time, 0., "step time", "k", 2)
     plot_perf(model_update, 0., "update model", "r")
-    plot_perf(tasks_update, model_update, "update tasks goals", "g")
+    plot_perf(tasks_update, model_update, "update updaters", "g")
     plot_perf(compute_output, model_update+tasks_update, "compute output", "b")
 
     pl.legend(ncol=2, prop={"size":'small'})

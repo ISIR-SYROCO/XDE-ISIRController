@@ -160,8 +160,11 @@ def zmppoints2foottraj(points, step_time, ratio, step_height, dt, H_0_planeXY):
         for j in np.arange(len(xout)):
 
             pos_j = lgsm.Displacement(res_X[0][j], res_Y[0][j], res_Z[0][j], np.cos(res_A[0][j]/2.), 0, 0, np.sin(res_A[0][j]/2.) )
-            vel_j = lgsm.Twist( lgsm.vector(0, 0, res_A[1][j], res_X[1][j], res_Y[1][j], res_Z[1][j]) )
-            acc_j = lgsm.Twist( lgsm.vector(0, 0, res_A[2][j], res_X[2][j], res_Y[2][j], res_Z[2][j]) )
+
+            Adj_frame_0 = lgsm.Displacementd(0,0,0, np.cos(res_A[0][j]/2.), 0, 0, np.sin(-res_A[0][j]/2.)).adjoint()
+
+            vel_j = Adj_frame_0 * lgsm.Twist( lgsm.vector(0, 0, res_A[1][j], res_X[1][j], res_Y[1][j], res_Z[1][j]) )
+            acc_j = Adj_frame_0 * lgsm.Twist( lgsm.vector(0, 0, res_A[2][j], res_X[2][j], res_Y[2][j], res_Z[2][j]) )
 
             traj_foot_i.append( (H_0_planeXY * pos_j, Adj_0_planeXY * vel_j, Adj_0_planeXY * acc_j) )
 
@@ -202,19 +205,25 @@ def zmppoints2waisttraj(points, step_time, dt, H_0_planeXY):
         for j in np.arange(len(xout)):
 
             pos_j = lgsm.Displacement(0,0,0, np.cos(res_A[0][j]/2.), 0, 0, np.sin(res_A[0][j]/2.) )
-            vel_j = lgsm.Twist( lgsm.vector(0, 0, res_A[1][j], 0,0,0) )
-            acc_j = lgsm.Twist( lgsm.vector(0, 0, res_A[2][j], 0,0,0) )
+
+            Adj_frame_0 = lgsm.Displacementd(0,0,0, np.cos(res_A[0][j]/2.), 0, 0, np.sin(-res_A[0][j]/2.)).adjoint()
+
+            vel_j = Adj_frame_0 * lgsm.Twist( lgsm.vector(0, 0, res_A[1][j], 0,0,0) )
+            acc_j = Adj_frame_0 * lgsm.Twist( lgsm.vector(0, 0, res_A[2][j], 0,0,0) )
 
             waist_traj.append( (H_0_planeXY * pos_j, Adj_0_planeXY * vel_j, Adj_0_planeXY * acc_j) )
 
     return waist_traj
 
-################################################################################
-################################################################################
-################################################################################
-from core import ISIRTaskController
 
-class FootTrajController(ISIRTaskController):
+
+
+
+
+################################################################################
+################################################################################
+################################################################################
+class FootTrajController(object):
     """ A controller to determine which foot has to be considered linked with the ground and which foot is released.
     """
     def __init__(self, lf_ctrl, rf_ctrl, lf_contacts, rf_contacts, ftraj, step_time, step_ratio, dt, start_foot, contact_as_objective, verbose=False):
@@ -258,7 +267,7 @@ class FootTrajController(ISIRTaskController):
         self.status_is_on_simple_support = False
 
 
-    def update(self, tick):
+    def update(self):
         """ Update the desired value of the registered feet tasks to the corresponding element of the trajectory.
 
         :param int tick: thre current physic agent iteration index (unused here)
@@ -436,12 +445,12 @@ class WalkingActivity(object):
         # Creation of all the sub-atomic-tasks
         H_0_lfs = self.dm.getSegmentPosition(self.lfoot_index) * self.H_lfoot_sole
         H_0_rfs = self.dm.getSegmentPosition(self.rfoot_index) * self.H_rfoot_sole
-        self.lfoot_task = ctrl.createFrameTask(prefix+"left_foot" , lfoot_name, H_lfoot_sole, "RXYZ", weight, kp=150., kd=None, pos_des=H_0_lfs)
-        self.rfoot_task = ctrl.createFrameTask(prefix+"right_foot", rfoot_name, H_rfoot_sole, "RXYZ", weight, kp=150., kd=None, pos_des=H_0_rfs)
-        self.com_task   = ctrl.createCoMTask(  prefix+"com", horizontal_dofs, weight, kp=0.) #, kd=0.
+        self.lfoot_task = ctrl.createFrameTask(prefix+"left_foot" , lfoot_name, H_lfoot_sole, "RXYZ", w=weight, kp=100., pose_des=H_0_lfs)
+        self.rfoot_task = ctrl.createFrameTask(prefix+"right_foot", rfoot_name, H_rfoot_sole, "RXYZ", w=weight, kp=100., pose_des=H_0_rfs)
+        self.com_task   = ctrl.createCoMTask(  prefix+"com", horizontal_dofs, w=weight, kp=0.) #, kd=0.
 
-        self.waist_rot_task = ctrl.createFrameTask(prefix+"waist_rotation", waist_name, H_waist_front, "R"         , weight, kp=9., pos_des=waist_position)
-        self.waist_alt_task = ctrl.createFrameTask(prefix+"waist_altitude", waist_name, H_waist_front, vertical_dof, weight, kp=9., pos_des=waist_position)
+        self.waist_rot_task = ctrl.createFrameTask(prefix+"waist_rotation", waist_name, H_waist_front, "R"         , w=weight, kp=9., pose_des=waist_position)
+        self.waist_alt_task = ctrl.createFrameTask(prefix+"waist_altitude", waist_name, H_waist_front, vertical_dof, w=weight, kp=9., pose_des=waist_position)
 
         # Creation of the sub-tasks controllers, to set the feet/waist/CoM trajectories
         self.com_ctrl   = None
@@ -451,10 +460,10 @@ class WalkingActivity(object):
         self.waist_rot_ctrl = task_controller.TrajectoryTracking(self.waist_rot_task, [])
         self.waist_alt_ctrl = task_controller.TrajectoryTracking(self.waist_alt_task, [])
 
-        self.ctrl.updater.register( self.lfoot_ctrl )
-        self.ctrl.updater.register( self.rfoot_ctrl )
-        self.ctrl.updater.register( self.waist_rot_ctrl )
-        self.ctrl.updater.register( self.waist_alt_ctrl )
+        self.ctrl.add_updater( self.lfoot_ctrl )
+        self.ctrl.add_updater( self.rfoot_ctrl )
+        self.ctrl.add_updater( self.waist_rot_ctrl )
+        self.ctrl.add_updater( self.waist_alt_ctrl )
 
         self.set_zmp_control_parameters()
         self.set_step_parameters()
@@ -527,7 +536,7 @@ class WalkingActivity(object):
         
         """
         if isinstance(altitude, lgsm.Displacement):
-            altitude = [[altitude]]
+            altitude = [(altitude, lgsm.Twist(), lgsm.Twist())]
         self.waist_alt_ctrl.set_new_trajectory( altitude )
 
     def set_waist_orientation(self, orientation):
@@ -538,7 +547,7 @@ class WalkingActivity(object):
         
         """
         if isinstance(orientation, lgsm.Displacement):
-            orientation = [[orientation]]
+            orientation = [(orientation, lgsm.Twist(), lgsm.Twist())]
         self.waist_rot_ctrl.set_new_trajectory( orientation )
 
     def set_zmp_control_parameters(self, RonQ=1e-6, horizon=1.6, stride=3, gravity=9.81, height_ref=0.0, updatePxPu=True):
@@ -633,16 +642,16 @@ class WalkingActivity(object):
         """
         """
         if self.com_ctrl is not None:
-            self.ctrl.updater.remove( self.com_ctrl )
+            self.ctrl.remove_updater( self.com_ctrl )
         if self.feet_ctrl is not None:
-            self.ctrl.updater.remove( self.feet_ctrl )
+            self.ctrl.remove_updater( self.feet_ctrl )
 
         self.com_ctrl = task_controller.ZMPController( self.com_task, self.dm, zmp_traj, self.RonQ, self.horizon, self.dt, self.H_0_planeXY, self.stride, self.gravity, self.height_ref, self.updatePxPu)
-        self.ctrl.updater.register( self.com_ctrl )
+        self.ctrl.add_updater( self.com_ctrl )
 
         if feet_trajs is not None:
             self.feet_ctrl = FootTrajController(self.lfoot_ctrl, self.rfoot_ctrl, self.lfoot_contacts, self.rfoot_contacts, feet_trajs, self.step_time, self.ratio, self.dt, self.start_foot, self.contact_as_objective)
-            self.ctrl.updater.register( self.feet_ctrl )
+            self.ctrl.add_updater( self.feet_ctrl )
 
         if waist_traj is not None:
             self.waist_rot_ctrl.set_new_trajectory( waist_traj )

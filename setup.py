@@ -13,23 +13,6 @@ def force_symlink(file1, file2):
 			shutil.rmtree(file2)
 			os.symlink(file1, file2)
 
-def set_xde_isir_controller_path():
-	s = ""
-	k = commands.getoutput("pkg-config --libs-only-L --silence-errors XDE-ISIRController").split()
-	if k == []:
-		sys.exit("XDE-ISIRController not found by pkg-config, setup aborted")
-
-	for i in k:
-		if i[:2] == "-L":
-			s = i[2:]
-			if not os.path.isfile(os.path.join(s,"libXDE-ISIRController-gnulinux.so")): #TODO: Linux only?
-				sys.exit("Cannot find libXDE-ISIRController-gnulinx.so, check installation of XDE-ISIRController")
-
-	cfg_file = os.path.join("src", "xic_config.py")
-	with open(cfg_file, 'w') as f:
-		f.write("xic_path = \""+s+"\"")
-		f.close()
-
 
 class develop(Command):
 	description = "Create symbolic link instead of installing files"
@@ -49,7 +32,7 @@ class develop(Command):
 		self.prefix = os.path.expanduser(self.prefix)
 
 	def run(self):
-		out_dir = os.path.join(self.prefix, "lib", "python"+self.py_version[0:3], "dist-packages")
+		out_dir = os.path.join(self.prefix, "lib", "python"+self.py_version[0:3], "site-packages")
 		if not os.path.isdir(out_dir):
 			os.makedirs(out_dir)
 
@@ -80,15 +63,13 @@ except ImportError:
 if sys.argv[0] == "setup.py":
 	script_name=sys.argv[0]
 	script_args=sys.argv[1:]
-else:
+else: # then it is run with xde, to generate documentation
 	script_name=sys.argv[1]
 	script_args=sys.argv[2:]
 
-print "Configure XDE-ISIRController"
-set_xde_isir_controller_path()
 
 setup(name='XDE-ISIRController',
-		version='0.1',
+		version='0.2',
 		description='isir qp-based controller for xde',
 		author='Soseph',
 		author_email='hak@isir.upmc.fr',
@@ -99,3 +80,5 @@ setup(name='XDE-ISIRController',
 		script_name=script_name,
 		script_args= script_args,
 	)
+
+

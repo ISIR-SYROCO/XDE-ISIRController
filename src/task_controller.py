@@ -3,39 +3,48 @@
 """ Module to modify the desired values of tasks.
 """
 
-from core import ISIRTaskController
+import swig_isir_controller as sic
 
+import lgsm
 
-class TrajectoryTracking(ISIRTaskController):
+class TrajectoryTracking(object):
     """ It modifies the desired values of a task to follow trajectory.
     """
 
-    def __init__(self, task, trajectory):
+    def __init__(self, task, trajectory=None, expressed_in_world=False):
         """
         :param task: The task to be controlled, meaning the part of the robot that should follow the trajectory
         :type  task: :class:`~core.ISIRTask`
         :param list trajectory: The trajectory to follow, a list ``[(pos1,vel1,acc1), (pos2,vel2,acc2), ..., (posN,velN,accN)]`` for each time step
 
         """
-        ISIRTaskController.__init__(self)
-        
+        if trajectory is None:
+            trajectory = []
+
         self.task = task
         self.set_new_trajectory(trajectory)
+        self.expressed_in_world = expressed_in_world
 
-    def update(self, tick):
-        """ Update the desired value of the registered task to the corresponding element of the trajectory.
+        # check task type
+        if task._targetState is None:
+            raise ValueError("Cannot control trajectory of task '"+task.getName()+"' that has no target State/Feature")
+        elif isinstance(task._targetState, sic.FullTargetState) or isinstance(task._targetState, sic.PartialTargetState):
+            if task.getTaskType()   == sic.ACCELERATIONTASK:
+                self._doUpdateTask_ = self._updateJointAccelerationTask_
+            elif task.getTaskType() == sic.TORQUETASK:
+                self._doUpdateTask_ = self._updateTorqueTask_
+            else:
+                raise ValueError("Control impossible in joint space for FORCETASK or UNKNOWNTASK")
+        elif isinstance(task._targetState, sic.TargetFrame):
+            if task.getTaskType()   == sic.ACCELERATIONTASK:
+                self._doUpdateTask_ = self._updateCartesianAccelerationTask_
+            elif task.getTaskType() == sic.FORCETASK:
+                self._doUpdateTask_ = self._updateForceTask_
+            else:
+                raise ValueError("Control impossible in cartesian space for TORQUETASK or UNKNOWNTASK")
+        else:
+            raise ValueError("Trajectory control of the target state (type:"+type(task._targetState)+") of task '"+task.getName()+"'")
 
-        :param int tick: the current physic agent iteration index (unused here)
-
-        An internal counter selects the corresponding desired value of the trajctory for the task.
-        If the last value of the trajectory is reached, the last desired value is considered (it remains registered).
-
-        """
-        if self.counter < self.max_counter:
-
-            traj_des = self.trajectory[self.counter]
-            self.task.update(*traj_des)
-            self.counter += 1
 
     def set_new_trajectory(self, new_traj):
         """ Register a new trajectory.
@@ -50,11 +59,50 @@ class TrajectoryTracking(ISIRTaskController):
         self.max_counter = len(self.trajectory)
 
 
+    def update(self):
+        """ Update the desired value of the registered task to the corresponding element of the trajectory.
+
+        An internal counter selects the corresponding desired value of the trajctory for the task.
+        If the last value of the trajectory is reached, the last desired value is considered (it remains registered).
+
+        """
+        if self.counter < self.max_counter:
+            self._doUpdateTask_()
+            self.counter += 1
+
+    def _updateCartesianAccelerationTask_(self):
+        pos_des, vel_des, acc_des = self.trajectory[self.counter]
+        if self.expressed_in_world:
+            Adj_frame_0 = lgsm.Displacementd( [0,0,0] + pos_des.getRotation().inverse().tolist()).adjoint()
+            vel_des = Adj_frame_0 * vel_des
+            acc_des = Adj_frame_0 * acc_des
+        self.task.setPosition(pos_des)
+        self.task.setVelocity(vel_des)
+        self.task.setAcceleration(acc_des)
+
+    def _updateJointAccelerationTask_(self):
+        q_des, qdot_des, qddot_des = self.trajectory[self.counter]
+        self.task.set_q(q_des)
+        self.task.set_qdot(qdot_des)
+        self.task.set_qddot(qddot_des)
+
+    def _updateTorqueTask_(self):
+        tau_des = self.trajectory[self.counter]
+        self.task.set_tau(tau_des)
+
+    def _updateForceTask_(self):
+        pose_ref, wrench_des = self.trajectory[self.counter]
+        if self.expressed_in_world:
+            Adj_frame_0 = lgsm.Displacementd( [0,0,0] + pos_des.getRotation().inverse().tolist()).adjoint()
+            wrench_des = Adj_frame_0 * wrench_des
+        self.task.setPosition(pose_ref)
+        self.task.setWrench(wrench_des)
+
 
 import numpy as np
 import lgsm
 
-class ZMPController(ISIRTaskController):
+class ZMPController(object):
     """ Compute the desired trajectory of a CoM task based on the ZMP control through a preview controller.
     
     The computation of the desired value is done with the XDE-ZMPy module.
@@ -91,9 +139,9 @@ class ZMPController(ISIRTaskController):
         
         self.comtask = comtask
         self.dm      = dyn_model
-
+        
         self.zmp_ctrl = zmpy_python.ZMPController(horizon, dt, RonQ, stride, gravity, height)
-
+        
         self.zmp_ctrl.setGoal(goal)
         
         self._dt = dt
@@ -107,16 +155,14 @@ class ZMPController(ISIRTaskController):
         self._prev_vel = np.array( self.R_planeXY_0 * self.dm.getCoMVelocity() ).flatten()
         self._counter  = 0
 
-        self.posdes = lgsm.Displacement()
-        self.veldes = lgsm.Twist()
+        self.comtask.setPosition(lgsm.Displacement())
+        self.comtask.setVelocity(lgsm.Twist())
         self.accdes = lgsm.Twist()
 
 
 
-    def update(self, tick):
+    def update(self):
         """ Update the desired value of the registered CoM task to the corresponding element of the trajectory.
-
-        :param int tick: thre current physic agent iteration index (unused here)
 
         It computes the desired CoM acceleration based on the jerk to control the ZMP position.
 
@@ -143,6 +189,8 @@ class ZMPController(ISIRTaskController):
         
         self.accdes.setLinearVelocity( dVcom_des )
 
-        self.comtask.update(self.posdes, self.veldes, self.accdes)
+        #self.comtask.setPosition(lgsm.Displacement())  # set in initialization
+        #self.comtask.setVelocity(lgsm.Twist())         # set in initialization
+        self.comtask.setAcceleration(self.accdes)
 
 

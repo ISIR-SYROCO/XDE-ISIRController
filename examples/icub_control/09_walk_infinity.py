@@ -23,17 +23,32 @@ def get_infinity_traj(start, direction, R=.5, eps=360, go_left=True):
 
     traj = []
 
-    for T in np.linspace(0, 2.*pi, eps):
-        a = start_angle + T
-        x = left_center[0,0] +R*np.cos(a - pi/2.)
-        y = left_center[1,0] +R*np.sin(a - pi/2.)
-        traj.append([x,y,a])
+    if go_left:
+        for T in np.linspace(0, 2.*pi, eps):
+            a = start_angle + T
+            x = left_center[0,0] +R*np.cos(a - pi/2.)
+            y = left_center[1,0] +R*np.sin(a - pi/2.)
+            traj.append([x,y,a])
 
-    for T in np.linspace(0, 2.*pi, eps):
-        a = start_angle - T
-        x = right_center[0,0] +R*np.cos(a + pi/2.)
-        y = right_center[1,0] +R*np.sin(a + pi/2.)
-        traj.append([x,y,a])
+        for T in np.linspace(0, 2.*pi, eps):
+            a = start_angle - T
+            x = right_center[0,0] +R*np.cos(a + pi/2.)
+            y = right_center[1,0] +R*np.sin(a + pi/2.)
+            traj.append([x,y,a])
+
+    else:
+        for T in np.linspace(0, 2.*pi, eps):
+            a = start_angle - T
+            x = right_center[0,0] +R*np.cos(a + pi/2.)
+            y = right_center[1,0] +R*np.sin(a + pi/2.)
+            traj.append([x,y,a])
+
+        for T in np.linspace(0, 2.*pi, eps):
+            a = start_angle + T
+            x = left_center[0,0] +R*np.cos(a - pi/2.)
+            y = left_center[1,0] +R*np.sin(a - pi/2.)
+            traj.append([x,y,a])
+
 
     return np.array(traj)
 
@@ -41,7 +56,7 @@ def get_infinity_traj(start, direction, R=.5, eps=360, go_left=True):
 ##### AGENTS
 dt = 0.01
 wm = xwm.WorldManager()
-wm.createAllAgents(dt, lmd_max=.01, uc_relaxation_factor=0.01)
+wm.createAllAgents(dt, lmd_max=.01, uc_relaxation_factor=0.001)
 wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 
@@ -80,25 +95,24 @@ robot.setJointVelocities(lgsm.zeros(N))
 dynModel.setJointVelocities(lgsm.zeros(N))
 
 
-#robot.setJointPositionsMin(-10*lgsm.ones(N))
-#robot.setJointPositionsMax(-10*lgsm.ones(N))
+robot.setJointPositionsMin(-10*lgsm.ones(N))
+robot.setJointPositionsMax(+10*lgsm.ones(N))
 
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "qld", True)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
-ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
-ctrl.setJointLimitsHorizonOfPrediction(.2)
-ctrl.enableJointLimits(False)
+torqueConst = ctrl.add_constraint(xic.TorqueLimitConstraint(ctrl.getModel(), 80.*lgsm.ones(N) ) )
+#jointConst  = ctrl.add_constraint(xic.JointLimitConstraint(ctrl.getModel(), .2 ) )
 
 ##### SET TASKS
-fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
+fullTask = ctrl.createFullTask("full", w=0.0001, kp=9., q_des=qinit)
 
-#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 10.0, kp=25., pos_des=lgsm.Displacement(0,0,.58,0,0,0,1))
+#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", w=10.0, kp=25., pose_des=lgsm.Displacement(0,0,.58,0,0,0,1))
 
 back_dofs   = [jmap[rname+"."+n] for n in ['torso_pitch', 'torso_roll', 'torso_yaw']]
-backTask    = ctrl.createPartialTask("back", back_dofs, 1.0, kp=25., pos_des=lgsm.zeros(3))
+backTask    = ctrl.createPartialTask("back", back_dofs, w=1.0, kp=25., q_des=lgsm.zeros(3))
 
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
@@ -110,9 +124,9 @@ l_contacts = []
 r_contacts = []
 for y in [-.027, .027]:
     for z in [-.031, .099]:
-        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5)
         l_contacts.append(ct)
-        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5)
         r_contacts.append(ct)
         i+=1
 
@@ -122,10 +136,10 @@ for y in [-.027, .027]:
 
 
 ##### SET TASK CONTROLLERS
-RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-H_lf_sole = lgsm.Displacement([-.039, 0, .034]+RotLZdown.tolist() )
-H_rf_sole = lgsm.Displacement([-.039, 0,-.034]+RotRZdown.tolist() )
+RotLZUp = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
+RotRZUp = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
+H_lf_sole = lgsm.Displacement([-.039, 0, .034]+RotLZUp.tolist() )
+H_rf_sole = lgsm.Displacement([-.039, 0,-.034]+RotRZUp.tolist() )
 walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
@@ -136,11 +150,11 @@ walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
 
 
 
-inf_traj = get_infinity_traj(lgsm.vector(0.,0.), lgsm.vector(1,0))
+inf_traj = get_infinity_traj(lgsm.vector(0.,0.), lgsm.vector(1,0), R=.5, go_left=True)
 zmp_ref = walkingActivity.followTrajectory(inf_traj)
 
 ##### OBSERVERS
-zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
+zmplipmpobs = ctrl.add_updater( xic.observers.ZMPLIPMPositionObserver(ctrl.getModel(), lgsm.Displacement(), dt, 9.81) )
 
 
 ##### SIMULATE

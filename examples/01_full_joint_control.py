@@ -25,24 +25,27 @@ N = robot.getJointSpaceDim()
 
 dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
+
 ##### CTRL
-import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+import xde_isir_controller  as xic
+dynModel2 = xic.getModelFromSharedLibrary("resources/libModelKukaFixed.so", "Create_kukafixed", rname)
+
+
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+#ctrl = xic.ISIRController(dynModel2, rname, wm.phy, wm.icsync, "quadprog", False)
 
 
 gposdes = 1.2 * lgsm.ones(N)
 gveldes = lgsm.zeros(N)
-fullTask = ctrl.createFullTask("full", 1.)
-fullTask.setKpKd(20)
-fullTask.update(gposdes, gveldes)
-
+fullTask = ctrl.createFullTask("full", "INTERNAL", w=1., kp=20.)
+fullTask.set_q(gposdes)
+fullTask.set_qdot(gveldes)
 
 
 ##### OBSERVERS
-jpobs = ctrl.updater.register(xic.observers.JointPositionsObserver(dynModel))
+jpobs = ctrl.add_updater(xic.observers.JointPositionsObserver(ctrl.getModel()))
 
-
-##### SIMULATE
+###### SIMULATE
 ctrl.s.start()
 
 wm.startAgents()

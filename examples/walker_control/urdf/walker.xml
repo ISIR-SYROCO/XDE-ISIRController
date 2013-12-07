@@ -1,0 +1,293 @@
+<?xml version="1.0" ?>
+
+
+<robot name="walker">
+
+    <link name="waist">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="20."/>
+            <inertia ixx="1.33"  ixy="0"  ixz="0" iyy="0.86" iyz="0" izz="1.66" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size=".3 .4 .2"/>
+            </geometry>
+            <material name="material.metal" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size=".3 .05 .05"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <link name="l_thigh_roll">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value=".1"/>
+            <inertia ixx="0.01"  ixy="0"  ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+        </inertial>
+    </link>
+    <link name="l_thigh_pitch">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value=".1"/>
+            <inertia ixx="0.01"  ixy="0"  ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+        </inertial>
+    </link>
+    <link name="l_thigh">
+        <inertial>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <mass value="2."/>
+            <inertia ixx="0.1"  ixy="0"  ixz="0" iyy="0.1" iyz="0" izz="0.01" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+            <material name="material.metal" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="l_shank">
+        <inertial>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <mass value="2."/>
+            <inertia ixx="0.1"  ixy="0"  ixz="0" iyy="0.1" iyz="0" izz="0.01" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+            <material name="material.metal" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="l_foot_roll">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value=".1"/>
+            <inertia ixx="0.01"  ixy="0"  ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+        </inertial>
+    </link>
+    <link name="l_foot">
+        <inertial>
+            <origin xyz="0.05 0 0" rpy="0 0 0" />
+            <mass value="2."/>
+            <inertia ixx="0.015"  ixy="0"  ixz="0" iyy="0.06" iyz="0" izz="0.075" />
+        </inertial>
+        <visual>
+            <origin xyz="0.05 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size=".3 .15 .01"/>
+            </geometry>
+            <material name="material.metal" />
+        </visual>
+        <collision>
+            <origin xyz="0.05 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size=".3 .15 .01"/>
+            </geometry>
+        </collision>
+    </link>
+
+
+
+
+    <link name="r_thigh_roll">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value=".1"/>
+            <inertia ixx="0.01"  ixy="0"  ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+        </inertial>
+    </link>
+    <link name="r_thigh_pitch">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value=".1"/>
+            <inertia ixx="0.01"  ixy="0"  ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+        </inertial>
+    </link>
+    <link name="r_thigh">
+        <inertial>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <mass value="2."/>
+            <inertia ixx="0.1"  ixy="0"  ixz="0" iyy="0.1" iyz="0" izz="0.01" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+            <material name="material.metal" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="r_shank">
+        <inertial>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <mass value="2."/>
+            <inertia ixx="0.1"  ixy="0"  ixz="0" iyy="0.1" iyz="0" izz="0.01" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+            <material name="material.metal" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 -.2" rpy="0 0 0" />
+            <geometry>
+                <box size=".05 .05 .4"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="r_foot_roll">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value=".1"/>
+            <inertia ixx="0.01"  ixy="0"  ixz="0" iyy="0.01" iyz="0" izz="0.01" />
+        </inertial>
+    </link>
+    <link name="r_foot">
+        <inertial>
+            <origin xyz="0.05 0 0" rpy="0 0 0" />
+            <mass value="2."/>
+            <inertia ixx="0.015"  ixy="0"  ixz="0" iyy="0.06" iyz="0" izz="0.075" />
+        </inertial>
+        <visual>
+            <origin xyz="0.05 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size=".3 .15 .01"/>
+            </geometry>
+            <material name="material.metal" />
+        </visual>
+        <collision>
+            <origin xyz="0.05 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size=".3 .15 .01"/>
+            </geometry>
+        </collision>
+    </link>
+
+
+
+
+
+
+
+
+
+    <joint name="l_hip_roll" type="revolute">
+        <origin xyz="0 0.15 -0.1" rpy="0  0  0" />
+        <parent link="waist"/>
+        <child link="l_thigh_roll" />
+        <axis xyz="1  0  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="l_hip_pitch" type="revolute">
+        <origin xyz="0 0 0" rpy="0  0  0" />
+        <parent link="l_thigh_roll"/>
+        <child link="l_thigh_pitch" />
+        <axis xyz="0  1  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="l_hip_yaw" type="revolute">
+        <origin xyz="0 0 0" rpy="0  0  0" />
+        <parent link="l_thigh_pitch"/>
+        <child link="l_thigh" />
+        <axis xyz="0  0  1" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="l_knee" type="revolute">
+        <origin xyz="0 0 -.4" rpy="0  0  0" />
+        <parent link="l_thigh"/>
+        <child link="l_shank" />
+        <axis xyz="0  1  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="l_ankle_roll" type="revolute">
+        <origin xyz="0 0 -.45" rpy="0  0  0" />
+        <parent link="l_shank"/>
+        <child link="l_foot_roll" />
+        <axis xyz="1  0  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="l_ankle_pitch" type="revolute">
+        <origin xyz="0 0 0" rpy="0  0  0" />
+        <parent link="l_foot_roll"/>
+        <child link="l_foot" />
+        <axis xyz="0  1  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+
+
+
+    <joint name="r_hip_roll" type="revolute">
+        <origin xyz="0 -0.15 -0.1" rpy="0  0  0" />
+        <parent link="waist"/>
+        <child link="r_thigh_roll" />
+        <axis xyz="1  0  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="r_hip_pitch" type="revolute">
+        <origin xyz="0 0 0" rpy="0  0  0" />
+        <parent link="r_thigh_roll"/>
+        <child link="r_thigh_pitch" />
+        <axis xyz="0  1  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="r_hip_yaw" type="revolute">
+        <origin xyz="0 0 0" rpy="0  0  0" />
+        <parent link="r_thigh_pitch"/>
+        <child link="r_thigh" />
+        <axis xyz="0  0  1" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="r_knee" type="revolute">
+        <origin xyz="0 0 -.4" rpy="0  0  0" />
+        <parent link="r_thigh"/>
+        <child link="r_shank" />
+        <axis xyz="0  1  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="r_ankle_roll" type="revolute">
+        <origin xyz="0 0 -.45" rpy="0  0  0" />
+        <parent link="r_shank"/>
+        <child link="r_foot_roll" />
+        <axis xyz="1  0  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="r_ankle_pitch" type="revolute">
+        <origin xyz="0 0 0" rpy="0  0  0" />
+        <parent link="r_foot_roll"/>
+        <child link="r_foot" />
+        <axis xyz="0  1  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+
+</robot>
+
+
+

@@ -12,7 +12,7 @@ import time
 dt = 0.01
 wm = xwm.WorldManager()
 wm.createAllAgents(dt, lmd_max=.2)
-wm.resizeWindow("mainWindow", 640, 480, 1000, 50)
+wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 
 ##### ROBOT
@@ -27,42 +27,37 @@ dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 
 ##### CTRL
-import xde_isir_controller as xic
-ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", False)
+import xde_isir_controller  as xic
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+
+jointConst  = ctrl.add_constraint( xic.JointLimitConstraint(ctrl.getModel(), -0.5 * lgsm.ones(N), 0.8 * lgsm.ones(N), .1) )
+#jointConst.setJointLimits(-0.5 * lgsm.ones(N), 0.8 * lgsm.ones(N))
 
 
-gposdes = 0.5 * lgsm.ones(N)
+gposdes = 1.2 * lgsm.ones(N)
 gveldes = lgsm.zeros(N)
-fullTask = ctrl.createFullTask("full", "INTERNAL", w=0.0001, kp=10.)  # create full task with a very low weight for reference posture
+fullTask = ctrl.createFullTask("full", "INTERNAL", w=1., kp=20.)
 fullTask.set_q(gposdes)
 fullTask.set_qdot(gveldes)
-
-
-gposdes = 1.5 * lgsm.ones(1)
-gveldes = lgsm.zeros(1)
-part1Task = ctrl.createPartialTask("partial 1", [0], "INTERNAL", w=1., kp=20.)
-part1Task.set_q(gposdes)
-part1Task.set_qdot(gveldes)
-
-gposdes = -1.5 * lgsm.ones(2)
-gveldes = lgsm.zeros(2)
-part2Task = ctrl.createPartialTask("partial 2", [3,4], "INTERNAL", w=1., kp=20.)
-part2Task.set_q(gposdes)
-part2Task.set_qdot(gveldes)
 
 
 ##### OBSERVERS
 jpobs = ctrl.add_updater(xic.observers.JointPositionsObserver(ctrl.getModel()))
 
-
-##### SIMULATE
+###### SIMULATE
 ctrl.s.start()
 
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
-#import xdefw.interactive
-#xdefw.interactive.shell_console()()
+
+time.sleep(3.)
+jointConst.setHorizonOfPrediction(.5)
+fullTask.set_q( -1.2 * lgsm.ones(N))
+time.sleep(4.)
+jointConst.setHorizonOfPrediction(1.)
+jointConst.setJointUpperLimit(3, 0.2)
+fullTask.set_q( 1.2 * lgsm.ones(N))
 time.sleep(5.)
 
 wm.stopAgents()

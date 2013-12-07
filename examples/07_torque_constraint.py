@@ -12,7 +12,7 @@ import time
 dt = 0.01
 wm = xwm.WorldManager()
 wm.createAllAgents(dt, lmd_max=.2)
-wm.resizeWindow("mainWindow", 640, 480, 1000, 50)
+wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 
 ##### ROBOT
@@ -28,31 +28,23 @@ dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", False)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+
+torqueConst = ctrl.add_constraint(xic.TorqueLimitConstraint(ctrl.getModel(), lgsm.ones(N)*0.08))
+
+ctrl.controller.takeIntoAccountGravity(False)
+robot.enableGravity(False)
+
+torqueTask = ctrl.createTorqueTask("torque", [1], w=1.)
 
 
-gposdes = 0.5 * lgsm.ones(N)
-gveldes = lgsm.zeros(N)
-fullTask = ctrl.createFullTask("full", "INTERNAL", w=0.0001, kp=10.)  # create full task with a very low weight for reference posture
-fullTask.set_q(gposdes)
-fullTask.set_qdot(gveldes)
-
-
-gposdes = 1.5 * lgsm.ones(1)
-gveldes = lgsm.zeros(1)
-part1Task = ctrl.createPartialTask("partial 1", [0], "INTERNAL", w=1., kp=20.)
-part1Task.set_q(gposdes)
-part1Task.set_qdot(gveldes)
-
-gposdes = -1.5 * lgsm.ones(2)
-gveldes = lgsm.zeros(2)
-part2Task = ctrl.createPartialTask("partial 2", [3,4], "INTERNAL", w=1., kp=20.)
-part2Task.set_q(gposdes)
-part2Task.set_qdot(gveldes)
+torqueTraj = .1 * lgsm.np.sin(lgsm.np.arange(0,5., dt) * lgsm.np.pi ).reshape((-1,1))
+ctrl.add_updater( xic.task_controller.TrajectoryTracking(torqueTask, torqueTraj) )
 
 
 ##### OBSERVERS
 jpobs = ctrl.add_updater(xic.observers.JointPositionsObserver(ctrl.getModel()))
+tpobs = ctrl.add_updater(xic.observers.TorqueObserver(ctrl))
 
 
 ##### SIMULATE
@@ -69,12 +61,17 @@ wm.stopAgents()
 ctrl.s.stop()
 
 
-
 ##### RESULTS
 import pylab as pl
 
 jpos = jpobs.get_record()
+pl.figure()
 pl.plot(jpos)
+
+tpos = tpobs.get_record()
+pl.figure()
+pl.plot(tpos)
+
 pl.show()
 
 

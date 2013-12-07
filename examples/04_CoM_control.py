@@ -28,25 +28,25 @@ dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog")
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog")
 
 
 gposdes = 0.5 * lgsm.ones(N)
 gveldes = lgsm.zeros(N)
-fullTask = ctrl.createFullTask("full", 0.0001)  # create full task with a very low weight for reference posture
-fullTask.setKpKd(10)
-fullTask.update(gposdes, gveldes)
+fullTask = ctrl.createFullTask("full", w=0.0001, kp=10.)  # create full task with a very low weight for reference posture
+fullTask.set_q(gposdes)
+fullTask.set_qdot(gveldes)
 
 
 gposdes = lgsm.Displacement(.1,.1,.2,1,0,0,0)
 gveldes = lgsm.Twist()
-CoMTask = ctrl.createCoMTask("CoM", "XYZ", 1.) # dofs can be replaced by combination of
-CoMTask.setKpKd(20)
-CoMTask.update(gposdes, gveldes)
+CoMTask = ctrl.createCoMTask("CoM", "XYZ", w=1., kp=20.) # dofs can be replaced by combination of
+CoMTask.setPosition(gposdes)
+CoMTask.setVelocity(gveldes)
 
 
 ##### OBSERVERS
-cpobs = ctrl.updater.register(xic.observers.CoMPositionObserver(dynModel))
+cpobs = ctrl.add_updater(xic.observers.CoMPositionObserver(ctrl.getModel()))
 
 
 ##### SIMULATE

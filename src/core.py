@@ -12,30 +12,66 @@ xdefw.rtt.Task, with more flexibility on parameter definition.
 Finally, task instances are separated from the controller to facilitate their use.
 """
 
-import deploy.deployer as ddeployer
+#import deploy.deployer as ddeployer
 import xdefw.rtt
 import rtt_interface
 import physicshelper
 
-import lgsm
+import swig_isir_controller as sic
+
+from numpy import sqrt
 
 import json
 
-from model import ISIRModel
+from time import time
+
+################################################################################
+################################################################################
+# useful constant value
+_WhatPartDict = {
+    None           : sic.INTERNAL,
+    "INTERNAL"     : sic.INTERNAL,
+    sic.INTERNAL   : sic.INTERNAL,
+    "FULL_STATE"   : sic.FULL_STATE,
+    sic.FULL_STATE : sic.FULL_STATE,
+    "FREE_FLYER"   : sic.FREE_FLYER,
+    sic.FREE_FLYER : sic.FREE_FLYER,
+}
+
+
+_CartesianDofs = {
+    None    : (True, sic.XYZ),
+    "RXYZ"  : (True, sic.XYZ),
+    "R"     : (True, None),
+    "X"     : (False, sic.X),
+    "Y"     : (False, sic.Y),
+    "Z"     : (False, sic.Z),
+    "XY"    : (False, sic.XY),
+    "XZ"    : (False, sic.XZ),
+    "YZ"    : (False, sic.YZ),
+    "XYZ"   : (False, sic.XYZ),
+    "RX"    : (True , sic.X),
+    "RY"    : (True , sic.Y),
+    "RZ"    : (True , sic.Z),
+    "RXY"   : (True , sic.XY),
+    "RXZ"   : (True , sic.XZ),
+    "RYZ"   : (True , sic.YZ),
+    "RXYZ"  : (True , sic.XYZ),
+}
+
 
 ################################################################################
 ################################################################################
 ################################################################################
-class ISIRCtrl(xdefw.rtt.Task):
+class ISIRController(xdefw.rtt.Task):
     """ Proxy of orcisir_ISIRController.
     """
 
     _NBISIRCTRL = 0
 
-    def __init__(self, libdir, dynamic_model, robot_name, physic_agent, sync_connector=None, solver="quadprog", reduced_problem=False, multi_level=False, createFunctionName="Create"):
+    def __init__(self, dynamic_model, robot_name, physic_agent, sync_connector=None, solver="quadprog", reduced_problem=False,      create_function_name="Create", controller_name="ISIRController"):
         """ Instantiate proxy of controller.
-        
-        :param string libdir: path string where one can find the lib 'XDE_ISIRController-gnulinux'
+
         :param dynamic_model: The dynamic model based on the controlled robot
         :type  dynamic_model: :class:`physicshelper.DynamicModel` or string
         :param string robot_name: the name given to the robot in the GVM.Robot instance.
@@ -43,37 +79,29 @@ class ISIRCtrl(xdefw.rtt.Task):
         :param sync_connector: the synchronisation connector when this is required (in the WorldManager package, it is ``WorldManager.icsync``)
         :param string solver: Choose the internal solver; for now "quadprog" or "qld"
         :param bool reduced_problem: whether one want to solve the problem in **[ddq, torque, fc]** (True) or **[torque, fc]** (False)
-        :param bool multi_level: whether one wants to solve multi level problem. Thus, it enables setLevel method for tasks.
-        :param string createFunctionName: if ``dynamic_model`` is a string, it means that we try to load a shared library,
-                                          and ``createFunctionName`` is the name of the function to call to create the ISIRModel.
         """
-        oiname = "oISIRController"+str(ISIRCtrl._NBISIRCTRL)
-        orocos_ICTask = ddeployer.load(oiname, "XDE_ISIRController",
-                                       module="XDE-ISIRController-gnulinux", prefix="",
-                                       libdir=libdir)
-        super(ISIRCtrl, self).__init__(orocos_ICTask)
-        
-        ISIRCtrl._NBISIRCTRL += 1
-        
-        self.physicTimeStep = physic_agent.s.GVM("main").Scene.getTimeStep()
-        self.robot_name = robot_name
-        
-        
-        # set dynamic model and init inner solver
-        if isinstance(dynamic_model, physicshelper.DynamicModel):
-            self.s.setModelFromXDEPointerStr(str(dynamic_model.this.__long__()), self.physicTimeStep)
-        elif isinstance(dynamic_model, basestring):
-            self.s.setModelFromSharedLibrary(dynamic_model, createFunctionName, robot_name)
-        else:
-            raise ValueError, "cannot load dynamic_model: "+str(dynamic_model)
-        
-        self.dynamic_model = ISIRModel(libdir, dynamic_model)    # Create the ISIRModel(python) proxy that returns information of the registered ISIRModel(C++)
-        
-        self.s.setControllerAndTaskManager(solver, reduced_problem, multi_level)
-        
-        self.NDOF0 = 6
-        if self.dynamic_model.hasFixedRoot():
-            self.NDOF0 = 0
+        super(ISIRController, self).__init__(rtt_interface.PyTaskFactory.CreateTask("ISIRController_Task_"+str(ISIRController._NBISIRCTRL)))
+        ISIRController._NBISIRCTRL += 1
+
+        self.robot_name     = robot_name
+
+        #######################################
+        # Create connection with physic agent #
+        #######################################
+        # create port in this orocos task
+        self.q_port     = self.addCreateInputPort("q", "VectorXd", True)
+        self.qdot_port  = self.addCreateInputPort("qdot", "VectorXd", True)
+        self.Hroot_port = self.addCreateInputPort("Hroot", "Displacementd", True)
+        self.Troot_port = self.addCreateInputPort("Troot", "Twistd", True)
+        self.tau_port   = self.addCreateOutputPort("tau", "VectorXd")
+        self.q_ok       = False
+        self.qdot_ok    = False
+        self.Hroot_ok   = False
+        self.Troot_ok   = False
+        self.q          = None
+        self.qdot       = None
+        self.Hroot      = None
+        self.Troot      = None
 
         # create connector in the physical agent: out.connector for robot state, and in.connector for tau
         robotPrefix = robot_name+"_"
@@ -85,631 +113,358 @@ class ISIRCtrl(xdefw.rtt.Task):
         physic_agent.getPort(robotPrefix+"qdot").connectTo(self.getPort("qdot"))
         physic_agent.getPort(robotPrefix+"Hroot").connectTo(self.getPort("Hroot"))
         physic_agent.getPort(robotPrefix+"Troot").connectTo(self.getPort("Troot"))
-        physic_agent.getPort("contacts").connectTo(self.getPort("contacts"))
+#        physic_agent.getPort("contacts").connectTo(self.getPort("contacts"))
 
         # set connection from controller to physic
         if sync_connector is not None:
             sync_connector.addEvent(robotPrefix+"tau")
         self.getPort("tau").connectTo(physic_agent.getPort(robotPrefix+"tau"))
 
-        self.updater = ISIRUpdater()
-        self.getPort("tasks_to_update").connectTo(self.updater.getPort("ctrl_trigger"))
-        self.updater.getPort("tasks_updated").connectTo(self.getPort("tasks_updated"))
-        self.updater.s.start()
+        ##################################
+        # Set dynamic model of the robot #
+        ##################################
+        # set dynamic model and init inner solver
+        if isinstance(dynamic_model, physicshelper.DynamicModel):
+            self.dynamic_model = sic.getModelFromXDEDynamicModel(dynamic_model)
+        elif isinstance(dynamic_model, basestring):
+            self.dynamic_model = sic.getModelFromSharedLibrary(dynamic_model, create_function_name, robot_name) #self.s.setModelFromSharedLibrary(dynamic_model, createFunctionName, robot_name)
+        else:
+            self.dynamic_model = dynamic_model
+
+        assert(isinstance(self.dynamic_model, sic.swig_isir_controller.Model)) # check if model is compatible with controller
+
+        ##############
+        # Set solver #
+        ##############
+        if isinstance(solver, basestring):
+            if solver == "quadprog":
+                self.solver = sic.OneLevelSolverWithQuadProg()
+            elif solver == "qld":
+                self.solver = sic.OneLevelSolverWithQLD()
+        else:
+            self.solver = solver
+
+        assert(isinstance(self.solver, sic.swig_isir_controller.Solver)) # check if solver is compatible with controller
+
+        self.controller = sic.ISIRController(controller_name, self.dynamic_model, self.solver, reduced_problem)
+
+        self.registered_tasks       = []
+        self.registered_constraints = []
+        self.registered_updaters    = []
 
 
-    ########################################################################
-    # Methods to easily access operations saved in the ISIRController Task #
-    ########################################################################
-    def setJointLimits(self, lower_bounds, upper_bounds):
-        """ Set the joint limits for the associated constraint.
-        
-        :param lower_bounds: lower limits, ``n=model.nbInternalDofs()``
-        :type  lower_bounds: (n,)-array
-        :param upper_bounds: upper limits, ``n=model.nbInternalDofs()``
-        :type  upper_bounds: (n,)-array
-        """
-        self.s.setJointLimits(lgsm.vector(lower_bounds), lgsm.vector(upper_bounds))
+    def add_constraint(self, const):
+        self.registered_constraints.append(const)
+        self.controller.addConstraint(const)
+        return const
 
-    def setJointLimitsHorizonOfPrediction(self, horizon):
-        """ Set the horizon of prediction (in second) for the joint limit constraint. """
-        self.s.setJointLimitsHorizonOfPrediction(horizon)
+    def remove_constraint(self, const):
+        self.registered_constraints.remove(const)
+        self.controller.removeConstraint(const)
+        return const
 
-    def setTorqueLimits(self, torque_limits):
-        """ Set the torque limits for the associated constraint.
-        
-        :param torque_limits: torque limits, ``n=model.nbInternalDofs()``
-        :type  torque_limits: (n,)-array
-        """
-        self.s.setTorqueLimits(lgsm.vector(torque_limits))
+    def add_updater(self, updater):
+        self.registered_updaters.append(updater)
+        return updater
 
-    def setContactAvoidanceHorizonOfPrediction(self, horizon):
-        """ Set the horizon of prediction (in second) for the contact avoidance constraint. """
-        self.s.setContactAvoidanceHorizonOfPrediction(horizon)
+    def remove_updater(self, updater):
+        self.registered_updaters.remove(updater)
+        return updater
 
-    def setContactAvoidanceMargin(self, margin):
-        """ Set the horizon of prediction (in second) for the contact avoidance constraint. """
-        self.s.setContactAvoidanceMargin(margin)
+    def startHook(self):
+        self._perf_timeline        = []
+        self._perf_model_update    = []
+        self._perf_updaters_update = []
+        self._perf_compute_output  = []
 
-    def setFixedRootPosition(self, H_root):
-        """ Set the root position when the robot has a fixed base.
-        
-        :param H_root: Represent the root position from ground
-        :type  H_root: :class:`lgsm.Displacement`
-        
-        When you change the root position of a fixed robot with method 'set_H_root_bm' for instance,
-        the modification is not taken into account in your dynamic model saved in the controller.
-        This can lead to miscalculation when updating task and constraints.
-        To take into account this modification, you must update your model with method 'setFreeFlyerPosition',
-        or you must use this method.
-        
-        """
-        self.s.setFixedRootPosition(H_root)
+    def stopHook(self):
+        pass
 
 
+    def exceptionHook(self):
+        print "IN EXCEPTION HOOK: exception raised, close python"
+        exit() #close python harshly
 
-    ##################################
-    # Methods to easily create tasks #
-    ##################################
-    def createFullTask(self, name, weight=1., whichPart="INTERNAL", **kwargs):
-        """ Create a task that control the full state of the model.
-        
-        Generally, to set a reference posture of the robot.
-        
-        :param string name: the **unique name** (id) of the task
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        :param string whichPart: tell what to control, see below
-        :param kwargs: some keyword arguments to quickly initialize task. See initialization of :class:`ISIRTask` for more info.
-        
-        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
-        
-        A full task can control different parts of the robot which are:
+    def updateHook(self):
+        if self.q_ok     is False:
+            self.q, self.q_ok         = self.q_port.read()
+        if self.qdot_ok  is False:
+            self.qdot, self.qdot_ok   = self.qdot_port.read()
+        if self.Hroot_ok is False:
+            self.Hroot, self.Hroot_ok = self.Hroot_port.read()
+        if self.Troot_ok is False:
+            self.Troot, self.Troot_ok = self.Troot_port.read()
 
-        * "INTERNAL"   -> internal joints of the robot
-        * "FREE_FLYER" -> the free flying pose of the robot (6 dofs) if any; the desired position is then
-                          a :class:`lgsm.vector` (dim=6) representing the 3 positions (x,y,z) and the 3 components
-                          of the quaternion axis (wx, wy, wz) (the imaginary part). #TODO: check if this is the good representation
-        * "FULL_STATE" -> control the free flying dofs and internal joints of the robot.
-                          if the robot has a fixed base, "INTERNAL" and "FULL_STATE" are equivalent
-        """
-        index = self.s.createFullTask(name, whichPart)
-        return ISIRFullTask(self, name, index, weight, **kwargs)
+        if self.q_ok and self.qdot_ok and self.Hroot_ok and self.Troot_ok:
+            self.q_ok     = False
+            self.qdot_ok  = False
+            self.Hroot_ok = False
+            self.Troot_ok = False
 
-    def createPartialTask(self, name, dofs, weight=1., **kwargs):
-        """ Create a task that control some state of the model.
-        
-        Generally, to control a particular subset of the robot, e.g. the arm, the leg, the spine...
-        
-        :param string name: the **unique name** (id) of the task
-        :param list dofs: list of int (segment index) or string (segment name) corresponding to the controlled dofs.
-                     Note that if you use a list of int, you must shift the segment indexes by 6 when the robot has a free flying root.
-                     It also means that the free floating pose can be controlled.
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        :param kwargs: some keyword arguments to quickly initialize task. See initialization of :class:`ISIRTask` for more info.
-        
-        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
-        
-        """
-        dofs_index = []
-        for d in dofs:
-            if isinstance(d, int):
-                dofs_index.append(d)
+            self._perf_timeline.append(time())
+
+            # update model
+            _t = time()
+            if self.dynamic_model.hasFixedRoot():
+                self.dynamic_model.setState(self.q, self.qdot)
             else:
-                d_idx = self.dynamic_model.getSegmentIndex(d)
-                dofs_index.append(self.NDOF0 + d_idx)
+                self.dynamic_model.setState(self.Hroot, self.q, self.Troot, self.qdot)
+            self._perf_model_update.append(time() -_t)
 
-        index = self.s.createPartialTask(name, dofs_index)
-        return ISIRPartialTask(self, name, index, weight, **kwargs)
+            # update updaters
+            _t = time()
+            for upd in self.registered_updaters:
+                upd.update()
+            self._perf_updaters_update.append(time() -_t)
 
-    def createFrameTask(self, name, segmentName, H_segment_frame, dofs, weight=1., **kwargs):
-        """ Create a task that control a frame of the model.
-        
-        Generally to track a pose or a trajectory in the cartesian space.
-        
-        :param string name: the **unique name** (id) of the task
-        :param string segmentName: the segment name that is rigidly linked with the controlled frame
-        :param H_segment_frame: the displacement from the origin of the segment to the frame
-        :type  H_segment_frame: :class:`lgsm.Displacement`
-        :param string dofs: a string representing the controlled part of the frame, e.g. the rotation or the X,Y-axes.
-                            dofs is the combination of the following character (in this order): 'R', 'X', 'Y', 'Z'
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        :param kwargs: some keyword arguments to quickly initialize task. See initialization of :class:`ISIRTask` for more info.
-        
-        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
-        
-        """
-        index = self.s.createFrameTask(name, segmentName, lgsm.Displacement(H_segment_frame), dofs.upper())
-        return ISIRFrameTask(self, name, index, weight, **kwargs)
+            # compute output
+            _t = time()
+            tau = self.controller.computeOutput()
+            self._perf_compute_output.append(time() - _t)
 
-    def createCoMTask(self, name, dofs, weight=1., **kwargs):
-        """ Create a task that control the Center of Mass (CoM) of the model.
-        
-        Generally associated to any balancing control, walking, static equilibrium etc...
-        
-        :param string name: the **unique name** (id) of the task
-        :param string dofs: a string representing the controlled part of the CoM (here rotation control is meaningless)
-                            it is the combination of the following character (in this order): 'X', 'Y', 'Z'
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
-        
-        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
-        
-        """
-        index = self.s.createCoMTask(name, dofs.upper())
-        return ISIRCoMTask(self, name, index, weight, **kwargs)
-
-    def createContactTask(self, name, segmentName, H_segment_frame, mu, margin=0., weight=1., **kwargs):
-        """ Create a task for frictional interaction with the environment.
-        
-        :param string name: the **unique name** (id) of the task
-        :param string segmentName: the segment name that is rigidly linked with the contact frame
-        :param H_segment_frame: the displacement from the origin of the segment to the frame
-        :type  H_segment_frame: :class:`lgsm.Displacement`
-        :param double mu: the Coulomb coefficient of friction
-        :param double margin: margin associated to the friction cone constraint. Positive margin means a thiner cone.
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
-        
-        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
-        
-        """
-        index = self.s.createContactTask(name, segmentName, lgsm.Displacement(H_segment_frame), mu, margin)
-        return ISIRContactTask(self, name, index, weight, **kwargs)
-
-    def createTorqueTask(self, name, dofs, weight=1., **kwargs):
-        """ Create a task that control some input torque of the model.
-        
-        Generally, to control in torque a particular subset of the robot, e.g. the arm, the leg, the spine...
-        
-        :param string name: the **unique name** (id) of the task
-        :param list dofs: list of int (segment index) or string (segment name) corresponding to the controlled internal dofs.
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        :param kwargs: some keyword arguments to quickly initialize task. See initialization of :class:`ISIRTask` for more info.
-        
-        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
-        
-        """
-        dofs_index = []
-        for d in dofs:
-            if isinstance(d, int):
-                dofs_index.append(d)
-            else:
-                d_idx = self.dynamic_model.getSegmentIndex(d)
-                dofs_index.append(d_idx)
-
-        index = self.s.createTorqueTask(name, dofs_index)
-        return ISIRTorqueTask(self, name, index, weight, **kwargs)
-
-    def createForceTask(self, name, segmentName, H_segment_frame, weight=1., **kwargs):
-        """ Create a task for generating an interaction force with the environment.
-        
-        :param string name: the **unique name** (id) of the task
-        :param string segmentName: the segment name that is rigidly linked with the contact frame
-        :param H_segment_frame: the displacement from the origin of the segment to the frame
-        :type  H_segment_frame: :class:`lgsm.Displacement`
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        :param kwargs: some keyword arguments to quickly initialize task. see ISIRTask.__init__ for more info.
-        
-        :rtype: a :class:`ISIRTask` instance which give access to the task methods and bypass the controller
-        
-        """
-        index = self.s.createForceTask(name, segmentName, lgsm.Displacement(H_segment_frame))
-        return ISIRForceTask(self, name, index, weight, **kwargs)
+            self.tau_port.write(tau)
 
 
 
-    ###################################
-    # Methods for contact information #
-    ###################################
-    def addContactInformation(self, phy_outContactPort, ctrl_inPortName, segmentName):
-        """ Add contact information in the solver to update contact task/constraints.
-        
-        :param phy_outContactPort: the output port which will transmit the contact information from physic agent
-        :type  phy_outContactPort: :class:`xdefw.rtt.OutputPort`
-        :param string ctrl_inPortName: the name of the input port that will receive the contact information into the controller
-        :param string segmentName: the segment name on which applies the contact information
-        
-        """
-        self.s.addContactInformation(ctrl_inPortName, segmentName)
-        phy_outContactPort.connectTo(self.getPort(ctrl_inPortName))
+    def getModel(self):
+        return self.dynamic_model
 
-    def useContactInformation(self, ctrl_inPortName, isUsed):
-        """ Define if a contact information port is used for obstacle avoidance.
-        
-        :param string ctrl_inPortName: the name of the input port that will receive the contact information into the controller
-        :param bool isUsed: enable/disable contact information
-        
-        """
-        self.s.useContactInformation(ctrl_inPortName, isUsed)
+    def getController(self):
+        return self.controller
 
-    ##########################
-    # Enable/Disable methods #
-    ##########################
-    def enableJointLimits(self, enabled):
-        """ Enable/disable the joint limits constraint. """
-        self.s.enableJointLimits(enabled)
-
-    def enableTorqueLimits(self, enabled):
-        """ Enable/disable the torque limits constraint. """
-        self.s.enableTorqueLimits(enabled)
-
-    def enableContactAvoidance(self, enabled):
-        """ Enable/disable the contact avoidance constraint. """
-        self.s.enableContactAvoidance(enabled)
 
     ################################
     # Get performances information #
     ################################
     def getPerformances(self):
         """ Get performances from the controller in a JSON style. """
-        return json.loads(self.s.getPerformances())
+        perf = json.loads(self.controller.getPerformances())
+        perf.update({ "timeline"       : self._perf_timeline,
+                      "model_update"   : self._perf_model_update,
+                      "updaters_update": self._perf_updaters_update,
+                      "compute_output" : self._perf_compute_output})
+        return perf
 
-    def writePerformancesInFile(self, fileName):
-        """ Write performances from the controller in a JSON file. """
-        self.s.writePerformancesInFile(fileName)
+
+    ########################
+    # Set task constructor #
+    ########################
+    def _addRegisterTask_(self, ntask, mState, feat, tState=None, featDes=None, **kwargs):
+        self.controller.addTask(ntask)
+        itask = ISIRTask(ntask, mState, feat, tState, featDes, **kwargs)
+        self.registered_tasks.append(itask)
+        return itask
+
+
+    def createFullTask(self, taskName, whatPart=None, model=None, **kwargs):
+        whatPart = _WhatPartDict[whatPart]
+
+        if model is None:
+            model = self.dynamic_model
+
+        FMS     = sic.FullModelState(  taskName+".FullModelState"      , model, whatPart)
+        FTS     = sic.FullTargetState( taskName+".FullTargetState"     , model, whatPart)
+        feat    = sic.FullStateFeature(taskName+".FullStateFeature"    , FMS)
+        featDes = sic.FullStateFeature(taskName+".FullStateFeature_Des", FTS)
+
+        fullTask = self.controller.createISIRTask(taskName, feat, featDes)
+        fullTask.initAsAccelerationTask()
+        return self._addRegisterTask_(fullTask, FMS, feat, FTS, featDes, **kwargs)
+
+
+    def createPartialTask(self, taskName, dofs, whatPart=None, model=None, **kwargs):
+        whatPart = _WhatPartDict[whatPart]
+        if whatPart is sic.FREE_FLYER:
+            raise KeyError, "free_flyer is not valid, use full_state instead."
+
+        if model is None:
+            model = self.dynamic_model
+
+        sdofs = []
+        for d in dofs:
+            if isinstance(d, int):
+                assert(d>=0)
+                sdofs.append(d)
+            elif isinstance(d, basestring):
+                dinternal = self.dynamic_model.getSegmentIndex(d)
+                if whatPart == sic.INTERNAL:
+                    sdofs.append(dinternal)
+                elif whatPart == sic.FULL_STATE:
+                    decal = 0 if self.dynamic_model.hasFixedRoot() else 6
+                    sdofs.append(dinternal+decal)
+
+        PMS     = sic.PartialModelState(  taskName+".PartialModelState"      , model, sdofs, whatPart)
+        PTS     = sic.PartialTargetState( taskName+".PartialTargetState"     , model, sdofs, whatPart)
+        feat    = sic.PartialStateFeature(taskName+".PartialStateFeature"    , PMS)
+        featDes = sic.PartialStateFeature(taskName+".PartialStateFeature_Des", PTS)
+
+        partialTask = self.controller.createISIRTask(taskName, feat, featDes)
+        partialTask.initAsAccelerationTask()
+        return self._addRegisterTask_(partialTask, PMS, feat, PTS, featDes, **kwargs)
+
+
+    def createFrameTask(self, taskName, segmentName, H_segment_frame, dofs=None, model=None, **kwargs):
+        dofs = _CartesianDofs[dofs]
+
+        if model is None:
+            model = self.dynamic_model
+
+        SF       = sic.SegmentFrame(taskName+".SegmentFrame", model, segmentName, H_segment_frame)
+        TF       = sic.TargetFrame( taskName+".TargetFrame" , model)
+
+        if   dofs[0]==True:
+            if dofs[1] is None:
+                feat    = sic.OrientationFeature(taskName+".OrientationFeature"    , SF)
+                featDes = sic.OrientationFeature(taskName+".OrientationFeature_Des", TF)
+            else:
+                feat    = sic.DisplacementFeature(taskName+".DisplacementFeature"    , SF, dofs[1])
+                featDes = sic.DisplacementFeature(taskName+".DisplacementFeature_Des", TF, dofs[1])
+        else:
+            feat    = sic.PositionFeature(taskName+".PositionFeature"    , SF, dofs[1])
+            featDes = sic.PositionFeature(taskName+".PositionFeature_Des", TF, dofs[1])
+
+        frameTask = self.controller.createISIRTask(taskName, feat, featDes)
+        frameTask.initAsAccelerationTask()
+        return self._addRegisterTask_(frameTask, SF, feat, TF, featDes, **kwargs)
+
+
+    def createCoMTask(self, taskName, dofs="XYZ", model=None, **kwargs):
+        dofs = _CartesianDofs[dofs]
+        if dofs[0] == True:
+            raise ValueError("Cannot control CoM in rotation.")
+        if model is None:
+            model = self.dynamic_model
+
+        CoMF    = sic.CoMFrame(   taskName+".CoMFrame"   , model);
+        TF      = sic.TargetFrame(taskName+".TargetFrame", model);
+        feat    = sic.PositionFeature(taskName+".PositionFeature"    , CoMF, dofs[1]);
+        featDes = sic.PositionFeature(taskName+".PositionFeature_Des", TF  , dofs[1]);
+
+        CoMTask = self.controller.createISIRTask(taskName, feat, featDes)
+        CoMTask.initAsAccelerationTask()
+        return self._addRegisterTask_(CoMTask, CoMF, feat, TF, featDes, **kwargs)
+
+
+    def createTorqueTask(self, taskName, dofs, model=None, **kwargs):
+        # The dofs are necesseraly internal
+
+        if model is None:
+            model = self.dynamic_model
+
+        PMS     = sic.PartialModelState(  taskName+".PartialModelState"      , model, dofs, sic.INTERNAL)
+        PTS     = sic.PartialTargetState( taskName+".PartialTargetState"     , model, dofs, sic.INTERNAL)
+        feat    = sic.PartialStateFeature(taskName+".PartialStateFeature"    , PMS)
+        featDes = sic.PartialStateFeature(taskName+".PartialStateFeature_Des", PTS)
+
+        torqueTask = self.controller.createISIRTask(taskName, feat, featDes)
+        torqueTask.initAsTorqueTask()
+        return self._addRegisterTask_(torqueTask, PMS, feat, PTS, featDes, **kwargs)
+
+
+
+    def createForceTask(self, taskName, segmentName, H_segment_frame, model=None, **kwargs):
+        if model is None:
+            model = self.dynamic_model
+
+        SF      = sic.SegmentFrame(taskName+".SegmentFrame", model, segmentName, H_segment_frame)
+        TF      = sic.TargetFrame( taskName+".TargetFrame" , model)
+        feat    = sic.PositionFeature(taskName+".PositionFeature"    , SF, sic.XYZ)
+        featDes = sic.PositionFeature(taskName+".PositionFeature_Des", TF, sic.XYZ)
+
+        forceTask = self.controller.createISIRTask(taskName, feat, featDes)
+        forceTask.initAsForceTask()
+        return self._addRegisterTask_(forceTask, SF, feat, TF, featDes, **kwargs)
+
+
+    def createContactTask(self, taskName, segmentName, H_segment_frame, mu, margin=0, model=None, **kwargs):
+        if model is None:
+            model = self.dynamic_model
+
+        SF   = sic.SegmentFrame(taskName+".SegmentFrame"          , model, segmentName, H_segment_frame)
+        feat = sic.PointContactFeature(taskName+".PositionFeature", SF)
+
+        contactTask = self.controller.createISIRContactTask(taskName, feat, mu, margin)
+        contactTask.initAsAccelerationTask() # we control the acceleration of the contact point
+        return self._addRegisterTask_(contactTask, SF, feat, **kwargs)
+
+
+
+    def createGenericTask(self, taskName, taskType, modelState, modelFeature, targetState=None, targetFeature=None, **kwargs):
+        if targetFeature is not None:
+            genTask = self.controller.createISIRTask(taskName, modelFeature, targetFeature)
+        else:
+            genTask = self.controller.createISIRTask(taskName, modelFeature)
+
+        if   taskType == "acceleration":
+            genTask.initAsAccelerationTask()
+        elif taskType == "torque":
+            genTask.initAsTorqueTask()
+        elif taskType == "force":
+            genTask.initAsForceTask()
+        else:
+            raise ValueError("taskType '"+taskType+"' is invalid; It should be one of 'acceleration', 'torque', 'force'")
+
+        return self._addRegisterTask_(genTask, modelState, modelFeature, targetState, targetFeature, **kwargs)
 
 
 
 
-################################################################################
-################################################################################
-################################################################################
+
+
+
+
+
 
 class ISIRTask(object):
-    """ Proxy of ISIRTask defined in the module 'XDE-ISIRController-gnulinux'.
-    
-    This allows to bypass the controller when updating the task. A task instance which is
-    separated from the controller gives simpler methods and leads to clearer code.
-    
-    """
-    
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        """ Instantiate a proxy of an ISIRTask.
-        
-        Warning: when creating this proxy the task must have been registred by the controller before.
-        
-        :param ctrl: the controller in which the task has been registered
-        :type  ctrl: :class:`ISIRCtrl`
-        :param string name: the **unique name** (id) of the task
-        :param double weight: the task weight for control trade-off when some tasks are conflicting
-        
-        :param kwargs: some keyword arguments can be pass to quickly initialize task parameters.
-                       these arguments can be any of: level (int), kp (double), kd (double), pos_des (:class:`lgsm.vector` or :class:`lgsm.Displacement`),
-                       vel_des (:class:`lgsm.vector` or :class:`lgsm.Twist`), acc_des (:class:`lgsm.vector` or :class:`lgsm.Twist`).
-        
-        """
-        self.ctrl     = ctrl
-        self.name     = name
-        self.index    = index
-        
-        print "init TASK", name, ":", index
-        
-        self.setWeight(weight)
-        
-        self.dimension = self.ctrl.s.getTaskDimension(self.index)
+    def __init__(self, task, modelState, modelFeature, targetState=None, targetFeature=None, **kwargs):
+        self._task          = task              #
+        self._modelState    = modelState        # create this class to keep a ref on state and features.
+        self._modelFeature  = modelFeature      # if not, they are not saved, are deleted by the garbage collector
+        self._targetState   = targetState       # and future call of the task will lead to error because new state & feature are alredy deleted.
+        self._targetFeature = targetFeature     # TODO: maybe a better solution with the use of acquire()
+
+        # To set the task method directly accessible by ISIRTask
+        for fnName in dir(self._task):
+            if fnName[:1] != "_" and hasattr(getattr(self._task, fnName), "__call__"):
+                setattr(self, fnName, getattr(self._task, fnName))
+
+        # Add targetState setter if any
+        if self._targetState is not None:
+            for fnName in dir(self._targetState):
+                if fnName[:3] != "set":
+                    setattr(self, fnName, getattr(self._targetState, fnName))
+
+        if "kp" in kwargs:
+            self.setStiffness(kwargs["kp"])
+            self.setDamping(2*sqrt(kwargs["kp"]))
+        if "kd" in kwargs:
+            self.setDamping(kwargs["kd"])
+
+        for k, v in kwargs.items():
+            if k in ["weight", "w"]:
+                self.setWeight(v)
+            elif k in ["set_q", "q_des"]:
+                self.set_q(v)
+            elif k in ["set_qdot", "dq_des"]:
+                self.set_qdot(v)
+            elif k in ["setPosition", "pose_des"]:
+                self.setPosition(v)
+            elif k in ["setVelocity", "vel_des"]:
+                self.setVelocity(v)
+
+        self.activateAsObjective()
+
+
+    def getTask(self):
+        return self._task
+
+    def getModelState(self):
+        return self._modelState
+
+    def getTargetState(self):
+        return self._targetState
 
-        #treat kwargs arguments
-        if ("level" in kwargs):
-            self.setLevel(kwargs["level"])
 
-        if ("kp" in kwargs) or ("kd" in kwargs):
-            kp = kwargs["kp"] if "kp" in kwargs else 0.
-            kd = kwargs["kd"] if "kd" in kwargs else None
-            self.setKpKd(kp, kd)
-
-
-    def setKpKd(self, kp, kd=None):
-        """ Set the proportionnal (kp) and derivative (kd) gains of the task.
-        
-        :param double kp: the proportionnal gain
-        :param double kd: the derivative gain. Note that if kd is None, then kd become 2.*sqrt(kp)
-        
-        """
-        if kd is None:
-            kd = 2.*lgsm.math.sqrt(kp)
-        self.ctrl.s.setTaskKpKd(self.index, kp, kd)
-
-    def setWeight(self, weight):
-        """ Set task weight """
-        self.ctrl.s.setTaskWeight(self.index, weight)
-
-    def setLevel(self, level):
-        """ Set task level """
-        self.ctrl.s.setTaskLevel(self.index, level)
-
-    def activateAsObjective(self):
-        """ Set task as an objective, meaning that an error may occur """
-        self.ctrl.s.activateTaskAsObjective(self.index)
-
-    def activateAsConstraint(self):
-        """ Set task as a constraint, meaning that no error should occur """
-        self.ctrl.s.activateTaskAsConstraint(self.index)
-
-    def deactivate(self):
-        """ Deactive objectives and constraints linked to the task """
-        self.ctrl.s.deactivateTask(self.index)
-
-    def getError(self):
-        """ get the tracking proportional error (the position error).
-        
-        :rtype: a :class:`lgsm.vector` of position error
-        
-        """
-        return self.ctrl.s.getTaskError(self.index)
-
-    def getErrorDot(self):
-        """ get the tracking derivative error (the velocity error).
-        
-        :rtype: a :class:`lgsm.vector` of velocity error
-        
-        """
-        return self.ctrl.s.getTaskErrorDot(self.index)
-
-    def getComputedForce(self):
-        """ get the force computed during the controller optimization, for a contact task.
-        
-        :rtype: a :class:`lgsm.vector` of computed force (should be of size 3)
-        
-        """
-        return self.ctrl.s.getTaskComputedForce(self.index)
-
-
-
-
-class ISIRAccelerationTask(ISIRTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
-
-    def init_update(self, **kwargs):
-        if ("pos_des" in kwargs) or ("vel_des" in kwargs) or ("acc_des" in kwargs):
-            pos_des = kwargs["pos_des"] if "pos_des" in kwargs else None
-            vel_des = kwargs["vel_des"] if "vel_des" in kwargs else None
-            acc_des = kwargs["acc_des"] if "acc_des" in kwargs else None
-            if "twistsExpressedInWorld" in kwargs:
-                self.update(pos_des, vel_des, acc_des, kwargs["twistsExpressedInWorld"])
-            else:
-                self.update(pos_des, vel_des, acc_des)
-
-
-class ISIRFullTask(ISIRAccelerationTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
-        self.null_pos_des       = lgsm.zero(self.dimension)
-        self.null_vel_des       = lgsm.zero(self.dimension)
-        self.init_update(**kwargs)
-
-    def update(self, posDes=None, velDes=None, accDes=None):
-        """ Update the desired values tracked by the task.
-        
-        :param posDes: a representation of the desired pose, depending on the taskType
-        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
-        :param velDes: a representation of the desired velocity, depending on the taskType
-        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        :param accDes: a representation of the reference acceleration, depending on the taskType.
-        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        
-        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
-        
-        """
-        if posDes is None:
-            posDes = self.null_pos_des
-        if velDes is None:
-            velDes = self.null_vel_des
-        if accDes is None:
-            accDes = self.null_vel_des
-        self.ctrl.s.updateFullTask(self.index, posDes, velDes, accDes)
-
-
-
-class ISIRPartialTask(ISIRAccelerationTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
-        self.null_pos_des       = lgsm.zero(self.dimension)
-        self.null_vel_des       = lgsm.zero(self.dimension)
-        self.init_update(**kwargs)
-
-    def update(self, posDes=None, velDes=None, accDes=None):
-        """ Update the desired values tracked by the task.
-        
-        :param posDes: a representation of the desired pose, depending on the taskType
-        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
-        :param velDes: a representation of the desired velocity, depending on the taskType
-        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        :param accDes: a representation of the reference acceleration, depending on the taskType.
-        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        
-        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
-        
-        """
-        if posDes is None:
-            posDes = self.null_pos_des
-        if velDes is None:
-            velDes = self.null_vel_des
-        if accDes is None:
-            accDes = self.null_vel_des
-        self.ctrl.s.updatePartialTask(self.index, posDes, velDes, accDes)
-
-
-class ISIRFrameTask(ISIRAccelerationTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
-        self.null_pos_des       = lgsm.Displacement()
-        self.null_vel_des       = lgsm.Twist()
-        self.init_update(**kwargs)
-
-    def update(self, posDes=None, velDes=None, accDes=None, twistsExpressedInWorld=True):
-        """ Update the desired values tracked by the task.
-        
-        :param posDes: a representation of the desired pose, depending on the taskType
-        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
-        :param velDes: a representation of the desired velocity, depending on the taskType
-        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        :param accDes: a representation of the reference acceleration, depending on the taskType.
-        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        :param bool twistsExpressedInWorld: Whether velDes & accDes are expressed in world/ground frame (then True), or in posDes frame (then False)
-        
-        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
-        
-        """
-        if posDes is None:
-            posDes = self.null_pos_des
-        if velDes is None:
-            velDes = self.null_vel_des
-        if accDes is None:
-            accDes = self.null_vel_des
-        self.ctrl.s.updateFrameTask(self.index, posDes, velDes, accDes, twistsExpressedInWorld)
-
-
-class ISIRCoMTask(ISIRAccelerationTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRAccelerationTask.__init__(self, ctrl, name, index, weight, **kwargs)
-        self.null_pos_des       = lgsm.Displacement()
-        self.null_vel_des       = lgsm.Twist()
-        self.init_update(**kwargs)
-
-    def update(self, posDes=None, velDes=None, accDes=None, twistsExpressedInWorld=True):
-        """ Update the desired values tracked by the task.
-        
-        :param posDes: a representation of the desired pose, depending on the taskType
-        :type  posDes: :class:`lgsm.Displacement` or :class:`lgsm.vector`
-        :param velDes: a representation of the desired velocity, depending on the taskType
-        :type  velDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        :param accDes: a representation of the reference acceleration, depending on the taskType.
-        :type  accDes: :class:`lgsm.Twist` or :class:`lgsm.vector`
-        :param bool twistsExpressedInWorld: Whether velDes & accDes are expressed in world/ground frame (then True), or in posDes frame (then False)
-        
-        If ``velDes`` or ``accDes`` is None, reference acceleration becomes null.
-        
-        """
-        if posDes is None:
-            posDes = self.null_pos_des
-        if velDes is None:
-            velDes = self.null_vel_des
-        if accDes is None:
-            accDes = self.null_vel_des
-        self.ctrl.s.updateCoMTask(self.index, posDes, velDes, accDes, twistsExpressedInWorld)
-
-
-class ISIRContactTask(ISIRTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
-
-
-class ISIRTorqueTask(ISIRTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
-
-        if "torque_des" in kwargs:
-            self.update(kwargs["torque_des"])
-
-    def update(self, torqueDes):
-        self.ctrl.s.updateTorqueTask(self.index, torqueDes)
-
-
-class ISIRForceTask(ISIRTask):
-
-    def __init__(self, ctrl, name, index, weight=1., **kwargs):
-        ISIRTask.__init__(self, ctrl, name, index, weight, **kwargs)
-
-    def update(self, forceDes, forceExpressedInWorld=True):
-        self.ctrl.s.updateForceTask(self.index, forceDes, forceExpressedInWorld)
-
-
-
-
-################################################################################
-################################################################################
-################################################################################
-class ISIRTaskController(object):
-    """ Abstract class for class controller.
-    
-    This is the base class that can be register by the :class:`ISIRTaskUpdater`.
-    
-    The main method is :meth:`update` that is called at each physic time step.
-    Updating a task (desired value, weight, level) should be done by a child
-    class of this one.
-    
-    """
-
-    def __init__(self):
-        """
-        """
-        pass
-
-    def update(self, tick):
-        """
-        """
-        pass
-
-
-class ISIRUpdater(xdefw.rtt.Task):
-    """ Regroups every classes that inherit from :class:`ISIRTaskController` or :class:`ISIRObserver`.
-    """
-
-    def __init__(self):
-        """
-        It should be connected with a :class:`ISIRCtrl` through orocos port:
-    
-        * An input port ("ctrl_trigger", int), that will wait for a tick to run update methods
-          of registered classes.
-        * An output port ("tasks_updated", int) that will send back the tick to inform that
-          all update methods have finished.
-        
-        """
-        super(ISIRUpdater, self).__init__(rtt_interface.PyTaskFactory.CreateTask("ISIRUpdater"))
-
-        self.in_ctrl_trigger_port = self.addCreateInputPort("ctrl_trigger",   "int", True)
-        self.out_updated_port     = self.addCreateOutputPort("tasks_updated", "int")
-
-
-    def register(self, new_updater):
-        """ Register a new updater.
-        
-        :param new_updater: the updater to register
-        :type  new_updater: :class:`ISIRTaskController` or :class:`ISIRObserver`
-        """
-        self.updaters.append(new_updater)
-        return new_updater
-
-    def remove(self, old_updater):
-        """ Remove a updater.
-        
-        :param old_updater: the updater to remove
-        :type  old_updater: :class:`ISIRTaskController` or :class:`ISIRObserver`
-        
-        """
-        self.updaters.remove(old_updater)
-
-    def startHook(self):
-        """ Start hook. It just creates a new list of updaters.
-        """
-        self.updaters = []
-
-    def stopHook(self):
-        """ Stop hook. Actually it does nothing.
-        """
-        pass
-
-    def updateHook(self):
-        """ Start hook.
-        
-        When the "ctrl_trigger" port receives a tick, it updates all the registered
-        updaters. When all done, it writes back the tick in the "tasks_updated" port.
-        
-        """
-        tick, tick_ok = self.in_ctrl_trigger_port.read()
-        if tick_ok:
-            for updt in self.updaters:    #TODO: should be parallelized
-                updt.update(tick)
-
-            self.out_updated_port.write(tick)  #all task updates done
 
 
 

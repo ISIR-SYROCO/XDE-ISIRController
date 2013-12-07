@@ -28,7 +28,7 @@ dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 
 
 gposdes = 1.2 * lgsm.ones(N)
@@ -37,12 +37,14 @@ gveldes = lgsm.zeros(N)
 #fullTask.setKpKd(20)
 #fullTask.update(gposdes, gveldes)
 
-torqueTask = ctrl.createTorqueTask("torque", [1], 1., torque_des=lgsm.vector([0.11]) )
+torqueTask = ctrl.createTorqueTask("torque", [1], w=1.)
+
+torqueTask.set_tau(lgsm.vector([0.11]))
 
 
 ##### OBSERVERS
-jpobs = ctrl.updater.register(xic.observers.JointPositionsObserver(dynModel))
-tpobs = ctrl.updater.register(xic.observers.TorqueObserver(ctrl))
+jpobs = ctrl.add_updater(xic.observers.JointPositionsObserver(ctrl.getModel()))
+tpobs = ctrl.add_updater(xic.observers.TorqueObserver(ctrl))
 
 
 ##### SIMULATE

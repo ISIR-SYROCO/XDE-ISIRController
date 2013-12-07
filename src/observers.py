@@ -157,7 +157,13 @@ def lookAt(_from, _to, _up):
     ov_UP, t, st, ct = getOrthogonalityData(minusZ, Up_in_Z)
     if ov_UP is not None:
         ov_diff, t_diff, st_diff, ct_diff = getOrthogonalityData(ov_Y, ov_UP)
-        Q_Z_UP = lgsm.Quaternion.fromAxisAngle( ov_diff, t_diff)
+        if ov_diff is not None:
+            Q_Z_UP = lgsm.Quaternion.fromAxisAngle( ov_diff, t_diff)
+        else:
+            if abs(t_diff) <1e-6:
+                Q_Z_UP = lgsm.Quaternion()
+            else:
+                Q_Z_UP = lgsm.Quaternion(0,0,0,1)
     else:
         Q_Z_UP = lgsm.Quaternion()
 
@@ -176,7 +182,7 @@ class Recorder(object):
     def __init__(self):
         self._record = []
 
-    def update(self, tick):
+    def update(self):
         raise NotImplementedError
 
     def save_record(self, rec):
@@ -191,7 +197,7 @@ class StateObserver(Recorder):
         Recorder.__init__(self)
         self.dynModel = dynModel
 
-    def update(self, tick):
+    def update(self):
         if self.dm.hasFixedRoot():
             state = (self.dm.getJointPositions(), self.dm.getJointVelocities())
         else:
@@ -205,9 +211,20 @@ class JointPositionsObserver(Recorder):
         
         self.dynModel = dynModel
 
-    def update(self, tick):
+    def update(self):
         pos = np.array(self.dynModel.getJointPositions()).flatten()
         self.save_record(pos)
+
+
+class JointVelocitiesObserver(Recorder):
+    def __init__(self, dynModel):
+        Recorder.__init__(self)
+        
+        self.dynModel = dynModel
+
+    def update(self):
+        vel = np.array(self.dynModel.getJointVelocities()).flatten()
+        self.save_record(vel)
 
 
 class FramePoseObserver(Recorder):
@@ -217,7 +234,7 @@ class FramePoseObserver(Recorder):
         self.seg_idx  = self.dynModel.getSegmentIndex(seg_name)
         self.H_s_f    = H_seg_frame
 
-    def update(self, tick):
+    def update(self):
         self.save_record(self.dynModel.getSegmentPosition(self.seg_idx) * self.H_s_f)
 
 
@@ -226,7 +243,7 @@ class CoMPositionObserver(Recorder):
         Recorder.__init__(self)
         self.dynModel   = dynModel
 
-    def update(self, trick):
+    def update(self):
         self.save_record(np.array(self.dynModel.getCoMPosition()).flatten())
 
 
@@ -242,7 +259,7 @@ class ZMPLIPMPositionObserver(Recorder):
         self.prev_CoMVelocity  = self.dynModel.getCoMVelocity()
 
 
-    def update(self, tick):
+    def update(self):
         CoMPosition           = self.dynModel.getCoMPosition()
         CoMVelocity           = self.dynModel.getCoMVelocity()
         CoMAcceleration       = (CoMVelocity - self.prev_CoMVelocity)/self.dt
@@ -266,7 +283,7 @@ class ZMPPositionObserver(Recorder):
 
         self.prev_dq = get_alldq(self.dynModel)
 
-    def update(self, tick):
+    def update(self):
         dq  = get_alldq(self.dynModel)
         ddq = (dq - self.prev_dq)/self.dt
         self.prev_dq = dq
@@ -300,13 +317,15 @@ class ScreenShotObserver(Recorder):
         
         self.wm.resizeWindow(self.window_name, x, y)
 
-    def update(self, tick):
+    def update(self):
         
         if self.idx < len(self.cam_traj):
             self.wm.graph_scn.CameraInterface.setDisplacementRelative(self.cam_name, self.cam_traj[self.idx] )
-        
-        img_name = self.rec_folder + os.sep + "{:06d}.png".format(self.idx)
-        self.wm.graph.s.Viewer.takeScreenShot(self.window_name, img_name)
+
+        if self.rec_folder:
+            img_name = self.rec_folder + os.sep + "{:06d}.png".format(self.idx)
+            self.wm.graph.s.Viewer.takeScreenShot(self.window_name, img_name)
+
         self.idx += 1
 
 
@@ -322,17 +341,10 @@ class TorqueObserver(xdefw.rtt.Task, Recorder):
         ctrl.getPort("tau").connectTo(self.tau_in)
 
 
-    def update(self, tick):
+    def update(self):
         tau, tau_ok = self.tau_in.read()
         if tau_ok:
             self.save_record(np.array(tau).flatten())
-
-
-
-
-
-
-
 
 
 
@@ -392,30 +404,6 @@ class TorqueObserver(xdefw.rtt.Task, Recorder):
 #        pl.plot(dists)
 #        
 #        pl.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

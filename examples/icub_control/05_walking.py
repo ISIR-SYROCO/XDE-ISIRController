@@ -24,7 +24,7 @@ wm.addWorld(groundWorld)
 ##### ROBOT
 rname = "robot"
 fixed_base = False
-robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [0,0,0.6,0,0,0,1], fixed_base, .003, 0.001)
+robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [1.5,1.5,0.6,0,0,0,1], fixed_base, .003, 0.001)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
@@ -53,19 +53,18 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "qld", True)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
-ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
-ctrl.setJointLimitsHorizonOfPrediction(.2)
-ctrl.enableJointLimits(True)
+#### SET CONSTRAINTS
+torqueConst = ctrl.add_constraint(xic.TorqueLimitConstraint(ctrl.getModel(), 80.*lgsm.ones(N) ) )
+jointConst  = ctrl.add_constraint(xic.JointLimitConstraint(ctrl.getModel(), .2 ) )
+
 
 ##### SET TASKS
-fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
-
-#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), "RZ", 10.0, kp=25., pos_des=lgsm.Displacement(0,0,.58))
+fullTask = ctrl.createFullTask("full", w=0.0001, kp=9., q_des=qinit)
 
 back_dofs   = [jmap[rname+"."+n] for n in ['torso_pitch', 'torso_roll', 'torso_yaw']]
-backTask    = ctrl.createPartialTask("back", back_dofs, 0.01, kp=25., pos_des=lgsm.zeros(3))
+backTask    = ctrl.createPartialTask("back", back_dofs, w=0.01, kp=25., q_des=lgsm.zeros(3))
 
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
@@ -77,9 +76,9 @@ l_contacts = []
 r_contacts = []
 for y in [-.027, .027]:
     for z in [-.031, .099]:
-        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5)
         l_contacts.append(ct)
-        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5)
         r_contacts.append(ct)
         i+=1
 
@@ -89,10 +88,10 @@ for y in [-.027, .027]:
 
 
 ##### SET TASK CONTROLLERS
-RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-H_lf_sole = lgsm.Displacement([-.039, 0, .034]+RotLZdown.tolist() )
-H_rf_sole = lgsm.Displacement([-.039, 0,-.034]+RotRZdown.tolist() )
+RotLZUp = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
+RotRZUp = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
+H_lf_sole = lgsm.Displacement([-.039, 0, .034]+RotLZUp.tolist() )
+H_rf_sole = lgsm.Displacement([-.039, 0,-.034]+RotRZUp.tolist() )
 walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
@@ -103,10 +102,10 @@ walkingActivity.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gra
 #walkingTask.stayIdle()
 
 
-zmp_ref = walkingActivity.goTo([.5,0.])
+zmp_ref = walkingActivity.goTo([.3,0.], relative_pos=True)
 
 ##### OBSERVERS
-zmplipmpobs = ctrl.updater.register(xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
+zmplipmpobs = ctrl.add_updater(xic.observers.ZMPLIPMPositionObserver(ctrl.getModel(), lgsm.Displacement(), dt, 9.81) )
 
 
 ##### SIMULATE

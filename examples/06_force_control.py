@@ -53,39 +53,39 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl_moving_wall = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel_moving_wall, "moving_wall", wm.phy, wm.icsync, "quadprog")
+ctrl_moving_wall = xic.ISIRController(dynModel_moving_wall, "moving_wall", wm.phy, wm.icsync, "quadprog")
 
 gposdes = lgsm.zeros(1)
 gveldes = lgsm.zeros(1)
-fullTask = ctrl_moving_wall.createFullTask("zero_wall", 1.)  # create full task with a very low weight for reference posture
-fullTask.setKpKd(20)
-fullTask.update(gposdes, gveldes)
+fullTask = ctrl_moving_wall.createFullTask("zero_wall", w=1., kp=20)  # create full task with a very low weight for reference posture
+fullTask.set_q(gposdes)
+fullTask.set_qdot(gveldes)
 
 
 
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "quadprog")
 
 
-#gposdes = 0.5 * lgsm.ones(N)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog")
+
 gposdes = qinit
 gveldes = lgsm.zeros(N)
-fullTask = ctrl.createFullTask("full", 0.0001)  # create full task with a very low weight for reference posture
-fullTask.setKpKd(0, 10)
-fullTask.update(gposdes, gveldes)
+fullTask = ctrl.createFullTask("full", w=0.0001, kp=0, kd=10)  # create full task with a very low weight for reference posture
+fullTask.set_q(gposdes)
+fullTask.set_qdot(gveldes)
 
 ##### To do an impedance task (an acceleration task without contact)
 #gposdes = lgsm.Displacement(.8,0,.25,1,0,0,0)
 #gveldes = lgsm.Twist()
-#EETask = ctrl.createFrameTask("EE", "robot.07", lgsm.Displacement(), "XYZ", 1.)
-#EETask.setKpKd(10)
-#EETask.update(gposdes, gveldes)
+#EETask = ctrl.createFrameTask("EEimp", "robot.07", lgsm.Displacement(), "XYZ", w=1., kp=10)
+#EETask.setPosition(gposdes)
+#EETask.setVelocity(gveldes)
 
 ##### To do a real force task
-EETask = ctrl.createForceTask("EE", "robot.07", lgsm.Displacement(), 1.0)
-EETask.update(lgsm.vector(10,0,0), True)
+EETask = ctrl.createForceTask("EEforce", "robot.07", lgsm.Displacement(), w=1.0)
+EETask.setWrench(lgsm.vector(0,0,0,10,0,0))
 
 ##### OBSERVERS
-tpobs = ctrl.updater.register(xic.observers.TorqueObserver(ctrl_moving_wall))
+tpobs = ctrl_moving_wall.add_updater(xic.observers.TorqueObserver(ctrl_moving_wall))
 
 ##### SIMULATE
 ctrl.s.start()
@@ -99,8 +99,9 @@ wm.phy.s.agent.triggerUpdate()
 time.sleep(5.)
 
 wm.stopAgents()
-ctrl.s.stop()
 ctrl_moving_wall.s.stop()
+ctrl.s.stop()
+
 
 
 ##### RESULTS

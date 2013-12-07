@@ -1,0 +1,98 @@
+
+<robot name="moving_wall">
+    <link name="basis">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="10"/>
+            <inertia ixx="1"  ixy="0"  ixz="0" iyy="1" iyz="0" izz="1" />
+        </inertial>
+        <visual>
+            <geometry>
+                <box size="0.05 0.05 0.05"/>
+            </geometry>
+            <material name="material.metal">
+                <color rgba="0 0 0 1" />
+            </material>
+        </visual>
+    </link>
+    <link name="link_x">
+        <inertial>
+            <mass value="10"/>
+            <inertia ixx="1"  ixy="0"  ixz="0" iyy="1" iyz="0" izz="1" />
+        </inertial>
+        <visual>
+            <geometry>
+                <sphere radius="0.1"/>
+            </geometry>
+            <material name="material.metal">
+                <color rgba="1 0 0 1" />
+            </material>
+        </visual>
+        <collision>
+            <geometry>
+                <sphere radius="0.1"/>
+            </geometry>
+        </collision>
+    </link>
+    
+    <link name="link_y">
+        <inertial>
+            <mass value="10"/>
+            <inertia ixx="1"  ixy="0"  ixz="0" iyy="1" iyz="0" izz="1" />
+        </inertial>
+        <visual>
+            <geometry>
+                <sphere radius="0.1"/>
+            </geometry>
+            <material name="material.metal">
+                <color rgba="0 1 0 1" />
+            </material>
+        </visual>
+        <collision>
+            <geometry>
+                <sphere radius="0.1"/>
+            </geometry>
+        </collision>
+    </link>
+    
+    <link name="link_z">
+        <inertial>
+            <mass value="10"/>
+            <inertia ixx="1"  ixy="0"  ixz="0" iyy="1" iyz="0" izz="1" />
+        </inertial>
+        <visual>
+            <geometry>
+                <sphere radius="0.1"/>
+            </geometry>
+            <material name="material.metal">
+                <color rgba="0 0 1 1" />
+            </material>
+        </visual>
+        <collision>
+            <geometry>
+                <sphere radius="0.1"/>
+            </geometry>
+        </collision>
+    </link>
+    
+    
+    <joint name="Tx" type="prismatic">
+        <parent link="basis"/>
+        <child link="link_x" />
+        <axis xyz="1  0  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="Ty" type="prismatic">
+        <parent link="link_x"/>
+        <child link="link_y" />
+        <axis xyz="0  1  0" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+    <joint name="Tz" type="prismatic">
+        <parent link="link_y"/>
+        <child link="link_z" />
+        <axis xyz="0  0  1" />
+        <limit lower="-10" upper="10" effort="1000" velocity="10" />
+    </joint>
+</robot>
+

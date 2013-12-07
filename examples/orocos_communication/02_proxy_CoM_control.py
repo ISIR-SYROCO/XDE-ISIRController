@@ -8,6 +8,14 @@ import lgsm
 import time
 
 
+class RemoteModelUpdater:
+    def __init__(self, proxy_model):
+        self.proxy_model = proxy_model
+
+    def update(self):
+        self.proxy_model.updateModel()
+
+
 ##### AGENTS
 dt = 0.01
 wm = xwm.WorldManager()
@@ -16,7 +24,7 @@ wm.resizeWindow("mainWindow", 640, 480, 1000, 50)
 
 
 ##### ROBOT
-rname = "robot"
+rname = "kuka"
 robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,1,0,0,0], True, 0.001, 0.01, use_collada_color=False)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
@@ -38,22 +46,33 @@ fullTask.set_q(gposdes)
 fullTask.set_qdot(gveldes)
 
 
-gposdes = 1.5 * lgsm.ones(1)
-gveldes = lgsm.zeros(1)
-part1Task = ctrl.createPartialTask("partial 1", [0], "INTERNAL", w=1., kp=20.)
-part1Task.set_q(gposdes)
-part1Task.set_qdot(gveldes)
 
-gposdes = -1.5 * lgsm.ones(2)
-gveldes = lgsm.zeros(2)
-part2Task = ctrl.createPartialTask("partial 2", [3,4], "INTERNAL", w=1., kp=20.)
-part2Task.set_q(gposdes)
-part2Task.set_qdot(gveldes)
 
+import swig_isir_controller as sic
+
+import xde_isir_controller.corba as corba
+
+CoMF      = sic.ProxyCoMFrame("proxy.CoM.CoMFrame", corba.getProxyTaskContext("remote.CoM.CoMFrame")._obj)
+
+TF       = sic.ProxyTargetFrame("proxy.CoM.TargetFrame", corba.getProxyTaskContext("remote.CoM.TargetFrame")._obj)
+
+proxyModel  = sic.ProxyModel(ctrl.getModel(), corba.getProxyTaskContext("remote.Model.kuka")._obj)
+
+
+feat     = sic.PositionFeature("CoM.PositionFeature"    , CoMF, sic.XYZ)
+featDes  = sic.PositionFeature("CoM.PositionFeature_Des", TF  , sic.XYZ)
+
+CoMTask   = ctrl.createGenericTask("CoM", "acceleration", CoMF, feat, TF, featDes, w=1., kp=20.)
+
+gposdes = lgsm.Displacement(.1,.1,.2,1,0,0,0)
+gveldes = lgsm.Twist()
+CoMTask.setPosition(gposdes)
+CoMTask.setVelocity(gveldes)
 
 ##### OBSERVERS
-jpobs = ctrl.add_updater(xic.observers.JointPositionsObserver(ctrl.getModel()))
+cpobs = ctrl.add_updater(xic.observers.CoMPositionObserver(ctrl.getModel()))
 
+ctrl.add_updater(RemoteModelUpdater(proxyModel) )
 
 ##### SIMULATE
 ctrl.s.start()
@@ -73,8 +92,8 @@ ctrl.s.stop()
 ##### RESULTS
 import pylab as pl
 
-jpos = jpobs.get_record()
-pl.plot(jpos)
+cpos = cpobs.get_record()
+pl.plot(cpos)
 pl.show()
 
 

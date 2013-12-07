@@ -53,19 +53,18 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "qld", True)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
-ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
-ctrl.setJointLimitsHorizonOfPrediction(.2)
-ctrl.enableJointLimits(True)
+torqueConst = ctrl.add_constraint(xic.TorqueLimitConstraint(ctrl.getModel(), 80.*lgsm.ones(N) ) )
+jointConst  = ctrl.add_constraint(xic.JointLimitConstraint(ctrl.getModel(), .2 ) )
 
 ##### SET TASKS
-fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
+fullTask = ctrl.createFullTask("full", w=0.0001, kp=9., q_des=qinit)
 
-#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), "RZ", 10.0, kp=25., pos_des=lgsm.Displacement(0,0,.58))
+#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(0,0,0,0,0,0,1), "RZ", w=10.0, kp=25., pose_des=lgsm.Displacement(0,0,.58))
 
 back_dofs   = [jmap[rname+"."+n] for n in ['torso_pitch', 'torso_roll', 'torso_yaw']]
-backTask    = ctrl.createPartialTask("back", back_dofs, 0.01, kp=25., pos_des=lgsm.zeros(3))
+backTask    = ctrl.createPartialTask("back", back_dofs, w=0.01, kp=25., pos_des=lgsm.zeros(3))
 
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
@@ -77,9 +76,9 @@ l_contacts = []
 r_contacts = []
 for y in [-.027, .027]:
     for z in [-.031, .099]:
-        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5)
         l_contacts.append(ct)
-        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5)
         r_contacts.append(ct)
         i+=1
 
@@ -106,8 +105,8 @@ walkingActivity.set_zmp_control_parameters(RonQ=1e-6, horizon=1.6, stride=3, gra
 zmp_ref = walkingActivity.goTo([.5,0.])
 
 ##### OBSERVERS
-zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81) )
-zmppobs     = ctrl.updater.register( xic.observers.ZMPPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81) )
+zmplipmpobs = ctrl.add_updater( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81) )
+zmppobs     = ctrl.add_updater( xic.observers.ZMPPositionObserver(dynModel, lgsm.Displacement(0,0,0.002,1,0,0,0), dt, 9.81) )
 
 
 ##### SIMULATE

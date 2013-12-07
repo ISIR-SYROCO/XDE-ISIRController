@@ -13,7 +13,7 @@ pi = lgsm.np.pi
 ##### AGENTS
 dt = 0.01
 wm = xwm.WorldManager()
-wm.createAllAgents(dt, lmd_max=.01, uc_relaxation_factor=0.01)
+wm.createAllAgents(dt, lmd_max=.01, uc_relaxation_factor=0.0001)
 wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 
@@ -54,19 +54,20 @@ dynModel.setJointVelocities(lgsm.zeros(N))
 
 ##### CTRL
 import xde_isir_controller as xic
-ctrl = xic.ISIRCtrl(xic.xic_config.xic_path, dynModel, rname, wm.phy, wm.icsync, "qld", True)
+ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "qld", True)
 
-ctrl.setTorqueLimits( 80.*lgsm.np.ones(N) )
-ctrl.setJointLimitsHorizonOfPrediction(.2)
-ctrl.enableJointLimits(True)
+#### SET CONSTRAINTS
+torqueConst = ctrl.add_constraint(xic.TorqueLimitConstraint(ctrl.getModel(), 80.*lgsm.ones(N) ) )
+jointConst  = ctrl.add_constraint(xic.JointLimitConstraint(ctrl.getModel(), .2 ) )
+
 
 ##### SET TASKS
-fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
+fullTask = ctrl.createFullTask("full", w=0.0001, kp=9., q_des=qinit)
 
-#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 1.0, kp=25., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
+#waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", w=1.0, kp=25., pose_des=lgsm.Displacement(0,0,.58,1,0,0,0))
 
 back_dofs   = [jmap[rname+"."+n] for n in ['torso_pitch', 'torso_roll', 'torso_yaw']]
-backTask    = ctrl.createPartialTask("back", back_dofs, 1.0, kp=25., pos_des=lgsm.zeros(3))
+backTask    = ctrl.createPartialTask("back", back_dofs, w=1.0, kp=25., q_des=lgsm.zeros(3))
 
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
@@ -78,9 +79,9 @@ l_contacts = []
 r_contacts = []
 for y in [-.027, .027]:
     for z in [-.031, .099]:
-        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CLF"+str(i), rname+".l_foot", lgsm.Displacement([-.039, y, z]+RotLZdown.tolist()), 1.5)
         l_contacts.append(ct)
-        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5, 0.) # mu, margin
+        ct = ctrl.createContactTask("CRF"+str(i), rname+".r_foot", lgsm.Displacement([-.039, y,-z]+RotRZdown.tolist()), 1.5)
         r_contacts.append(ct)
         i+=1
 
@@ -90,10 +91,12 @@ for y in [-.027, .027]:
 
 
 ##### SET TASK CONTROLLERS
-RotLZdown = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-RotRZdown = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
-H_lf_sole = lgsm.Displacement([-.039, 0, .034 + 0.006]+RotLZdown.tolist() )
-H_rf_sole = lgsm.Displacement([-.039, 0,-.034 - 0.006]+RotRZdown.tolist() )
+RotLZUp = lgsm.Quaternion(-sqrt2on2,0.0,-sqrt2on2,0.0) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
+RotRZUp = lgsm.Quaternion(0.0, sqrt2on2,0.0, sqrt2on2) * lgsm.Quaternion(0.0,0.0,0.0,1.0)
+#H_lf_sole = lgsm.Displacement([-.039, 0, .034 + 0.006]+RotLZUp.tolist() )
+#H_rf_sole = lgsm.Displacement([-.039, 0,-.034 - 0.006]+RotRZUp.tolist() )
+H_lf_sole = lgsm.Displacement([-.039, 0, .034]+RotLZUp.tolist() )
+H_rf_sole = lgsm.Displacement([-.039, 0,-.034]+RotRZUp.tolist() )
 walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
                                     rname+".l_foot", H_lf_sole, l_contacts,
                                     rname+".r_foot", H_rf_sole, r_contacts,
@@ -102,22 +105,23 @@ walkingActivity = xic.walk.WalkingActivity( ctrl, dt,
 
 
 
-zmp_ref = walkingActivity.goTo([-0.5,0.])
+zmp_ref = walkingActivity.goTo([-1.5,0.])
 
 ##### OBSERVERS
-zmplipmpobs = ctrl.updater.register( xic.observers.ZMPLIPMPositionObserver(dynModel, lgsm.Displacement(), dt, 9.81) )
+zmplipmpobs = ctrl.add_updater( xic.observers.ZMPLIPMPositionObserver(ctrl.getModel(), lgsm.Displacement(), dt, 9.81) )
 
 #if fixed camera
 cam_traj = [xic.observers.lookAt(lgsm.vector(-2,1.5,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1))]
+
 # or with a moving camera
 R, W, P = 2., 2*pi/7., pi/4.
-cam_traj
+cam_traj = []
 for tt in lgsm.np.arange(0, 11, dt):
     x = -0.5 + R*lgsm.np.cos(tt*W+P)
     y =      + R*lgsm.np.sin(tt*W+P)
     cam_traj.append(xic.observers.lookAt(lgsm.vector(x,y,1.5), lgsm.vector(-0.5,0,0.6), lgsm.vector(0,0,1)))
 
-screenobs = ctrl.updater.register(xic.observers.ScreenShotObserver(wm, "rec", cam_traj=cam_traj))
+screenobs = ctrl.add_updater(xic.observers.ScreenShotObserver(wm, "rec", cam_traj=cam_traj))
 
 
 ##### SIMULATE
