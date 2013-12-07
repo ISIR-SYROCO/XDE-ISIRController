@@ -32,6 +32,7 @@ robot.enableGravity(True)
 N  = robot.getJointSpaceDim()
 
 dynModel = xrl.getDynamicModelFromWorld(robotWorld)
+jmap     = xrl.getJointMapping(xr.icub_simple, robot)
 
 
 ##### SET INTERACTION
@@ -42,9 +43,8 @@ wm.contact.showContacts([(rname+"."+b,"ground.ground") for b in ["l_foot", "r_fo
 
 ##### SET INITIAL STATE
 qinit = lgsm.zeros(N)
-# correspond to:    l_elbow_pitch     r_elbow_pitch     l_knee             r_knee             l_ankle_pitch      r_ankle_pitch      l_shoulder_roll          r_shoulder_roll
-for name, val in [("l_arm", pi/8.), ("r_arm", pi/8.), ("l_thigh", -0.05), ("r_thigh", -0.05), ("l_shank", -0.05), ("r_shank", -0.05), ("l_shoulder_1", pi/8.), ("r_shoulder_1", pi/8.)]:
-    qinit[robot.getSegmentIndex(rname+"."+name)] = val
+for name, val in [("l_elbow_pitch", pi/8.), ("r_elbow_pitch", pi/8.), ("l_knee", -0.05), ("r_knee", -0.05), ("l_ankle_pitch", -0.05), ("r_ankle_pitch", -0.05), ("l_shoulder_roll", pi/8.), ("r_shoulder_roll", pi/8.)]:
+    qinit[jmap[rname+"."+name]] = val
 
 robot.setJointPositions(qinit)
 dynModel.setJointPositions(qinit)
@@ -66,8 +66,8 @@ fullTask = ctrl.createFullTask("full", 0.0001, kp=9., pos_des=qinit)
 
 waistTask   = ctrl.createFrameTask("waist", rname+'.waist', lgsm.Displacement(), "RZ", 1., kp=36., pos_des=lgsm.Displacement(0,0,.58,1,0,0,0))
 
-back_name   = [rname+"."+n for n in ['lap_belt_1', 'lap_belt_2', 'chest']]
-backTask    = ctrl.createPartialTask("back", back_name, 0.001, kp=16., pos_des=lgsm.zeros(3))
+back_dofs   = [jmap[rname+"."+n] for n in ['torso_pitch', 'torso_roll', 'torso_yaw']]
+backTask    = ctrl.createPartialTask("back", back_dofs, 0.001, kp=16., pos_des=lgsm.zeros(3))
 
 
 sqrt2on2 = lgsm.np.sqrt(2.)/2.
