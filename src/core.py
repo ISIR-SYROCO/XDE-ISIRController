@@ -12,7 +12,6 @@ xdefw.rtt.Task, with more flexibility on parameter definition.
 Finally, task instances are separated from the controller to facilitate their use.
 """
 
-#import deploy.deployer as ddeployer
 import xdefw.rtt
 import rtt_interface
 import physicshelper
