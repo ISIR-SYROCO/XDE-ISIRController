@@ -375,6 +375,14 @@ class ISIRController(xdefw.rtt.Task):
         return self._addRegisterTask_(forceTask, SF, feat, TF, featDes, **kwargs)
 
 
+    """ Create a contact task
+    :param taskName: The identifier of the task
+    :param segmentName: The identifier of the segment that belongs to the model
+    :param H_segment_frame: The offset relative to the segment frame where we want the contact
+    :param mu: Friction cone coefficient
+    :param margin:
+    :param model: The model of the robot
+    """
     def createContactTask(self, taskName, segmentName, H_segment_frame, mu, margin=0, model=None, **kwargs):
         if model is None:
             model = self.dynamic_model
