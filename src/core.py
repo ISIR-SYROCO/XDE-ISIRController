@@ -22,7 +22,9 @@ from numpy import sqrt
 
 import json
 
-from time import time
+from time import time as ctime
+
+import time
 
 ################################################################################
 ################################################################################
@@ -101,6 +103,8 @@ class ISIRController(xdefw.rtt.Task):
         self.qdot       = None
         self.Hroot      = None
         self.Troot      = None
+
+        self.clock_counter    = 0
 
         # create connector in the physical agent: out.connector for robot state, and in.connector for tau
         robotPrefix = robot_name+"_"
@@ -200,28 +204,32 @@ class ISIRController(xdefw.rtt.Task):
             self.Hroot_ok = False
             self.Troot_ok = False
 
-            self._perf_timeline.append(time())
+            self._perf_timeline.append(ctime())
 
             # update model
-            _t = time()
+            _t = ctime()
             if self.dynamic_model.hasFixedRoot():
                 self.dynamic_model.setState(self.q, self.qdot)
             else:
                 self.dynamic_model.setState(self.Hroot, self.q, self.Troot, self.qdot)
-            self._perf_model_update.append(time() -_t)
+            self._perf_model_update.append(ctime() -_t)
 
             # update updaters
-            _t = time()
+            _t = ctime()
             for upd in self.registered_updaters:
                 upd.update()
-            self._perf_updaters_update.append(time() -_t)
+            self._perf_updaters_update.append(ctime() -_t)
 
             # compute output
-            _t = time()
+            _t = ctime()
             tau = self.controller.computeOutput()
-            self._perf_compute_output.append(time() - _t)
+            self._perf_compute_output.append(ctime() - _t)
 
             self.tau_port.write(tau)
+
+            self.clock_counter += 1
+            
+      
 
 
 
@@ -231,7 +239,13 @@ class ISIRController(xdefw.rtt.Task):
     def getController(self):
         return self.controller
 
-
+    ########################################
+    # Wait for a period of controller time #
+    ########################################
+    def waitSimTime(self, t_total, dt):
+        while self.clock_counter*dt <= t_total:
+          time.sleep(1e-3)
+        
     ################################
     # Get performances information #
     ################################
