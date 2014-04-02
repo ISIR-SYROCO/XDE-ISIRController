@@ -88,6 +88,7 @@ class TaskGui(QtGui.QScrollArea):
                 gridlayout_qddot.addWidget(label_task_joint_qddot, i, 0)
                 gridlayout_qddot.addWidget(label_task_joint_value_qddot, i, 1)
                 gridlayout_qddot.addWidget(slider_qddot, i, 2)
+                slider_qddot.valueChanged.connect(self.task_joint_qddot_sigmap_slider.map)
                 self.task_joint_qddot_sigmap_slider.setMapping(slider_qddot, i)
                 self.task_joint_qddot_sigmap_label.setMapping(label_task_joint_value_qddot, i)
 
@@ -101,6 +102,7 @@ class TaskGui(QtGui.QScrollArea):
 
             self.task_joint_q_sigmap_slider.mapped.connect(self.setQdes)
             self.task_joint_qdot_sigmap_slider.mapped.connect(self.setQdotdes)
+            self.task_joint_qddot_sigmap_slider.mapped.connect(self.setQddotdes)
             self.task_gui.setLayout(self.groupbox_joint_task)
             self.syncDes()
 
@@ -124,6 +126,11 @@ class TaskGui(QtGui.QScrollArea):
         self.qdotdes[id] = self.task_joint_qdot_sigmap_slider.mapping(id).value()/100.0
         self.task.set_qdot(self.qdotdes)
         self.task_joint_qdot_sigmap_label.mapping(id).setText("[%.2f]" % self.qdotdes[id])
+
+    def setQddotdes(self, id):
+        self.qddotdes[id] = self.task_joint_qddot_sigmap_slider.mapping(id).value()/100.0
+        self.task.set_qddot(self.qddotdes)
+        self.task_joint_qddot_sigmap_label.mapping(id).setText("[%.2f]" % self.qddotdes[id])
 
 def createTaskGui(task):
     app_created = False
