@@ -16,6 +16,7 @@ class TaskGui(QtGui.QScrollArea):
         super(TaskGui, self).__init__()
         self.task = task
         self.task_gui = QtGui.QWidget()
+        self.groupbox_joint_task = QtGui.QHBoxLayout()
 
         if isinstance(self.task, sic.FullTargetState) or isinstance(self.task, sic.PartialTargetState):
             self.initJointTaskGui()
@@ -71,8 +72,6 @@ class TaskGui(QtGui.QScrollArea):
         self.groupbox_common.setLayout(self.gridlayout_common)
 
     def initJointTaskGui(self):
-        self.groupbox_joint_task = QtGui.QHBoxLayout()
-
         self._initCommonSlider()
         #check task is acceleration, torque or force
         if self.task.getTaskType() == sic.ACCELERATIONTASK:
