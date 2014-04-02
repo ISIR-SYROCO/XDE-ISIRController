@@ -11,6 +11,25 @@ import swig_isir_controller as sic
 def configure(app=None):
     IPython.lib.inputhook.enable_qt4(app)
 
+"""
+Gui Hierarchy:
+TaskGui <ScrollArea>
+--groupbox_joint_task <QHBoxLayout>
+----groupbox_common <QGroupBox>
+------gridlayout_common <QGridLayout>
+--------weight_label|weight_value_label|weight_slider
+--------kp_label|kp_value_label|kp_slider
+--------kd_label|kd_value_label|kd_slider
+----groupbox_q <QGroupBox>
+------gridlayout_q <QGridLayout>
+--------label_task_joint_q|label_task_joint_value_q|slider_q
+----groupbox_qdot <QGroupBox>
+------gridlayout_qdot <QGridLayout>
+--------label_task_joint_qdot|label_task_joint_value_qdot|slider_qdot
+----groupbox_qddot <QGroupBox>
+------gridlayout_qddot <QGridLayout>
+--------label_task_joint_qddot|label_task_joint_value_qddot|slider_qddot
+"""
 class TaskGui(QtGui.QScrollArea):
     def __init__(self, task):
         super(TaskGui, self).__init__()
