@@ -27,14 +27,53 @@ class TaskGui(QtGui.QScrollArea):
         else:
             raise ValueError("Unsupported task for gui")
 
-    def _createSlider(self):
-        slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        slider.setSingleStep(1)
-        slider.setRange(-400, 400)
-        return slider
+    def _createSlider(self, step=1, slider_range=[-400, 400]):
+        if len(slider_range) != 2:
+            raise ValueError("Incorrect range size while creating slider")
+        else:
+            slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+            slider.setSingleStep(step)
+            slider.setRange(slider_range[0], slider_range[1])
+            return slider
+
+    def _initCommonSlider(self):
+        self.groupbox_common = QtGui.QGroupBox("Common")
+
+        self.groupbox_joint_task.addWidget(self.groupbox_common)
+        self.gridlayout_common = QtGui.QGridLayout()
+        self.weight_label = QtGui.QLabel("Weight")
+        self.kp_label = QtGui.QLabel("kp")
+        self.kd_label = QtGui.QLabel("kd")
+
+        self.weight_value_label = QtGui.QLabel()
+        self.kp_value_label = QtGui.QLabel()
+        self.kd_value_label = QtGui.QLabel()
+
+        self.weight_slider = self._createSlider(slider_range=[1, 1000])
+        self.weight_slider.valueChanged.connect(self.setWeight)
+        self.kp_slider = self._createSlider(slider_range=[0, 3000])
+        self.kp_slider.valueChanged.connect(self.setKp)
+        self.kd_slider = self._createSlider(slider_range=[0, 3000])
+        self.kd_slider.valueChanged.connect(self.setKd)
+
+        self.gridlayout_common.addWidget(self.weight_label, 0, 0)
+        self.gridlayout_common.addWidget(self.weight_value_label, 0, 1)
+        self.gridlayout_common.addWidget(self.weight_slider, 0, 2)
+
+        self.gridlayout_common.addWidget(self.kp_label, 1, 0)
+        self.gridlayout_common.addWidget(self.kp_value_label, 1, 1)
+        self.gridlayout_common.addWidget(self.kp_slider, 1, 2)
+
+        self.gridlayout_common.addWidget(self.kd_label, 2, 0)
+        self.gridlayout_common.addWidget(self.kd_value_label, 2, 1)
+        self.gridlayout_common.addWidget(self.kd_slider, 2, 2)
+
+        self.groupbox_common.setLayout(self.gridlayout_common)
 
     def initJointTaskGui(self):
         self.groupbox_joint_task = QtGui.QHBoxLayout()
+
+        self._initCommonSlider()
         #check task is acceleration, torque or force
         if self.task.getTaskType() == sic.ACCELERATIONTASK:
             self.groupbox_q = QtGui.QGroupBox("q")
@@ -104,6 +143,7 @@ class TaskGui(QtGui.QScrollArea):
             self.task_joint_qdot_sigmap_slider.mapped.connect(self.setQdotdes)
             self.task_joint_qddot_sigmap_slider.mapped.connect(self.setQddotdes)
             self.task_gui.setLayout(self.groupbox_joint_task)
+            self.syncCommon()
             self.syncDes()
 
     def syncDes(self):
@@ -116,6 +156,19 @@ class TaskGui(QtGui.QScrollArea):
 
             self.task_joint_qddot_sigmap_slider.mapping(i).setValue(int(self.qddotdes[i]*100))
             self.task_joint_qddot_sigmap_label.mapping(i).setText("[%.2f]" % self.qddotdes[i])
+
+    def syncCommon(self):
+        weight = self.task.getWeight()[0]
+        self.weight_value_label.setText("[%.3f]" % weight) 
+        self.weight_slider.setValue(int(weight*1000))
+
+        kp = self.task.getStiffness()[0, 0]
+        self.kp_value_label.setText("[%.2f]" % kp) 
+        self.kp_slider.setValue(int(kp*100))
+
+        kd = self.task.getDamping()[0, 0]
+        self.kd_value_label.setText("[%.2f]" % kd) 
+        self.kd_slider.setValue(int(kd*100))
 
     def setQdes(self, id):
         self.qdes[id] = self.task_joint_q_sigmap_slider.mapping(id).value()/100.0
@@ -131,6 +184,21 @@ class TaskGui(QtGui.QScrollArea):
         self.qddotdes[id] = self.task_joint_qddot_sigmap_slider.mapping(id).value()/100.0
         self.task.set_qddot(self.qddotdes)
         self.task_joint_qddot_sigmap_label.mapping(id).setText("[%.2f]" % self.qddotdes[id])
+
+    def setWeight(self):
+        weight = self.weight_slider.value()/1000.0
+        self.weight_value_label.setText("[%.3f]" % weight)
+        self.task.setWeight(weight)
+
+    def setKp(self):
+        kp = self.kp_slider.value()/100.0
+        self.kp_value_label.setText("[%.2f]" % kp)
+        self.task.setStiffness(kp)
+
+    def setKd(self):
+        kd = self.kd_slider.value()/100.0
+        self.kd_value_label.setText("[%.2f]" % kd)
+        self.task.setDamping(kd)
 
 def createTaskGui(task):
     app_created = False
