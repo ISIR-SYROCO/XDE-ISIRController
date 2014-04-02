@@ -51,8 +51,12 @@ ctrl.s.start()
 wm.startAgents()
 wm.phy.s.agent.triggerUpdate()
 
+#import xde_isir_controller.task_gui as xicgui
+#xicgui.configure()
+#xicgui.createTaskGui(fullTask)
 #import xdefw.interactive
 #xdefw.interactive.shell_console()()
+
 time.sleep(5.)
 
 wm.stopAgents()
