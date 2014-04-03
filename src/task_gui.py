@@ -35,7 +35,7 @@ class TaskGui(QtGui.QScrollArea):
         super(TaskGui, self).__init__()
         self.task = task
         self.task_gui = QtGui.QWidget()
-        self.groupbox_joint_task = QtGui.QHBoxLayout()
+        self.groupbox_joint_task = QtGui.QBoxLayout(QtGui.QBoxLayout.LeftToRight)
 
         if isinstance(self.task, sic.FullTargetState) or isinstance(self.task, sic.PartialTargetState):
             self.initJointTaskGui()
@@ -94,10 +94,10 @@ class TaskGui(QtGui.QScrollArea):
         self._initCommonSlider()
 
     def initJointTaskGui(self):
-        self._initCommonSlider()
         taskDim = self.task.getDimension()
         #check task is acceleration, torque or force
         if self.task.getTaskType() == sic.ACCELERATIONTASK:
+            self._initCommonSlider()
             self.groupbox_q = QtGui.QGroupBox("q")
             self.groupbox_qdot = QtGui.QGroupBox("qdot")
             self.groupbox_qddot = QtGui.QGroupBox("qddot")
@@ -167,6 +167,8 @@ class TaskGui(QtGui.QScrollArea):
             self.syncDes()
 
         elif self.task.getTaskType() == sic.TORQUETASK:
+            self.groupbox_joint_task.setDirection(QtGui.QBoxLayout.TopToBottom)
+            self._initCommonSlider()
             self.groupbox_tau = QtGui.QGroupBox("tau")
 
             self.taudes = self.task.tau()
@@ -174,7 +176,7 @@ class TaskGui(QtGui.QScrollArea):
             self.task_joint_tau_sigmap_slider = QtCore.QSignalMapper(self)
             self.task_joint_tau_sigmap_label = QtCore.QSignalMapper(self)
 
-            self.task_gui.setGeometry(300, 300, 400, (1+taskDim)*60)
+            self.task_gui.setGeometry(300, 300, 400, (4+taskDim)*60)
             gridlayout_tau = QtGui.QGridLayout()
 
             for i in range(taskDim):
