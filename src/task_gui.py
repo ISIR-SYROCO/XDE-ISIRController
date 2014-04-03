@@ -90,14 +90,17 @@ class TaskGui(QtGui.QScrollArea):
 
         self.groupbox_common.setLayout(self.gridlayout_common)
 
+    def initControlFrameTaskGui(self):
+        self._initCommonSlider()
+
     def initJointTaskGui(self):
         self._initCommonSlider()
+        taskDim = self.task.getDimension()
         #check task is acceleration, torque or force
         if self.task.getTaskType() == sic.ACCELERATIONTASK:
             self.groupbox_q = QtGui.QGroupBox("q")
             self.groupbox_qdot = QtGui.QGroupBox("qdot")
             self.groupbox_qddot = QtGui.QGroupBox("qddot")
-            taskDim = self.task.getDimension()
 
             self.qdes = self.task.q()
             self.qdotdes = self.task.qdot()
@@ -161,8 +164,38 @@ class TaskGui(QtGui.QScrollArea):
             self.task_joint_qdot_sigmap_slider.mapped.connect(self.setQdotdes)
             self.task_joint_qddot_sigmap_slider.mapped.connect(self.setQddotdes)
             self.task_gui.setLayout(self.groupbox_joint_task)
-            self.syncCommon()
             self.syncDes()
+
+        elif self.task.getTaskType() == sic.TORQUETASK:
+            self.groupbox_tau = QtGui.QGroupBox("tau")
+
+            self.taudes = self.task.tau()
+
+            self.task_joint_tau_sigmap_slider = QtCore.QSignalMapper(self)
+            self.task_joint_tau_sigmap_label = QtCore.QSignalMapper(self)
+
+            self.task_gui.setGeometry(300, 300, 400, (1+taskDim)*60)
+            gridlayout_tau = QtGui.QGridLayout()
+
+            for i in range(taskDim):
+                label_task_joint_tau = QtGui.QLabel(str(i))
+                label_task_joint_value_tau = QtGui.QLabel(str(0.0))
+                slider_tau = self._createSlider(slider_range=[-1000, 1000])
+
+                gridlayout_tau.addWidget(label_task_joint_tau, i, 0)
+                gridlayout_tau.addWidget(label_task_joint_value_tau, i, 1)
+                gridlayout_tau.addWidget(slider_tau, i, 2)
+                slider_tau.valueChanged.connect(self.task_joint_tau_sigmap_slider.map)
+                self.task_joint_tau_sigmap_slider.setMapping(slider_tau, i)
+                self.task_joint_tau_sigmap_label.setMapping(label_task_joint_value_tau, i)
+
+            self.groupbox_tau.setLayout(gridlayout_tau)
+            self.groupbox_joint_task.addWidget(self.groupbox_tau)
+
+            self.task_joint_tau_sigmap_slider.mapped.connect(self.setTaudes)
+            self.task_gui.setLayout(self.groupbox_joint_task)
+
+        self.syncCommon()
 
     def syncDes(self):
         for i in range(self.task.getDimension()):
@@ -192,6 +225,11 @@ class TaskGui(QtGui.QScrollArea):
         self.qdes[id] = self.task_joint_q_sigmap_slider.mapping(id).value()/100.0
         self.task.set_q(self.qdes)
         self.task_joint_q_sigmap_label.mapping(id).setText("[%.2f]" % self.qdes[id])
+
+    def setTaudes(self, id):
+        self.taudes[id] = self.task_joint_tau_sigmap_slider.mapping(id).value()/100.0
+        self.task.set_tau(self.taudes)
+        self.task_joint_tau_sigmap_label.mapping(id).setText("[%.2f]" % self.taudes[id])
 
     def setQdotdes(self, id):
         self.qdotdes[id] = self.task_joint_qdot_sigmap_slider.mapping(id).value()/100.0
