@@ -36,13 +36,14 @@ class TaskGui(QtGui.QScrollArea):
         self.task = task
         self.task_gui = QtGui.QWidget()
         self.groupbox_joint_task = QtGui.QBoxLayout(QtGui.QBoxLayout.LeftToRight)
+        self.column = 1
 
         if isinstance(self.task, sic.FullTargetState) or isinstance(self.task, sic.PartialTargetState):
             self.initJointTaskGui()
 
             self.setWidget(self.task_gui)
             self.setWindowTitle(self.task.getName())
-            self.setGeometry(350, 350, 450, 500)
+            self.setGeometry(350, 350, 450*self.column, 500)
             self.show()
         else:
             raise ValueError("Unsupported task for gui")
@@ -97,6 +98,7 @@ class TaskGui(QtGui.QScrollArea):
         taskDim = self.task.getDimension()
         #check task is acceleration, torque or force
         if self.task.getTaskType() == sic.ACCELERATIONTASK:
+            self.column = 3
             self._initCommonSlider()
             self.groupbox_q = QtGui.QGroupBox("q")
             self.groupbox_qdot = QtGui.QGroupBox("qdot")
