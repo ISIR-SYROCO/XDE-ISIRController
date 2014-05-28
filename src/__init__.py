@@ -29,4 +29,16 @@ import task_controller
 import walk
 import performances
 
+try:
+    from swig_isir_controller import TaskXMLParser
+    fullstateCast = swig_isir_controller.isir_task_manager.fullstateCast
+    partialstateCast = swig_isir_controller.isir_task_manager.partialstateCast
+    frameCast = swig_isir_controller.isir_task_manager.frameCast
+    displacementCast = swig_isir_controller.isir_task_manager.displacementCast
+    positionCast = swig_isir_controller.isir_task_manager.positionCast
+    orientationCast = swig_isir_controller.isir_task_manager.orientationCast
+    comCast = swig_isir_controller.isir_task_manager.comCast
+    contactCast = swig_isir_controller.isir_task_manager.contactCast
+except:
+    TaskXMLParser = None
 

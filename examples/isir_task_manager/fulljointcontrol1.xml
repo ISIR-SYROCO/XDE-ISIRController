@@ -1,0 +1,48 @@
+<tasks>
+    <task id="full" type="ACCELERATION" active="1">
+        <param w="0.0001" kp="10" kd="4"/>
+        <feature type="fullstate">
+            <part value="INTERNAL"/>
+            <objective>
+                <q_des value="0.0 0.0 0.0 0.0 0.0 0.0 0.0"/>
+                <qd_des value="0.0 0.0 0.0 0.0 0.0 0.0 0.0"/>
+            </objective>
+        </feature>
+    </task>
+
+    <task id="frame" type="ACCELERATION" active="1">
+        <param w="1" kp="7" kd="4"/>
+        <feature type="position">
+            <dofs value="XYZ"/>
+            <segment name="kuka.07"/>
+            <local_offset xyz="0 0 0.05" rpy="0 0 0"/>
+            <objective>
+                <pos_des xyz="0.1 -0.1 0.5" rpy="0 0 0"/>
+                <vel_des xyz="0 0 0" rxyz="0 0 0"/>
+            </objective>
+        </feature>
+    </task>
+    <!--
+    <task id="com" active="1">
+        <param w="0.0001" kp="1" kd="1"/>
+        <feature type="com">
+            <dofs value="XYZ"/>
+            <objective>
+                <pos_des xyz="0.0 0.1 0.2"/>
+                <vel_des xyz="0.0 0.1 0.2"/>
+                <acc_des xyz="0.0 0.1 0.2"/>
+            </objective>
+        </feature>
+    </task>
+
+    <task id="contact" active="1">
+        <param w="1" kp="1" kd="1"/>
+        <feature type="contact">
+            <segment name="hand"/>
+            <local_offset xyz="0 0 0" rpy="0 0 0"/>
+            <mu value="0.7"/>
+            <margin value="0"/>
+        </feature>
+    </task>
+    -->
+</tasks>
