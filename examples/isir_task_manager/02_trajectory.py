@@ -17,7 +17,7 @@ wm.resizeWindow("mainWindow",  640, 480, 1000, 50)
 
 ##### ROBOT
 rname = "kuka"
-robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,1,0,0,0], True, 0.001, 0.01, use_collada_color=False)
+robotWorld = xrl.createWorldFromUrdfFile(xr.kuka, rname, [0,0,0,1,0,0,0], True, 0.001, 0.01, use_collada_color=True)
 wm.addWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)
 robot.enableGravity(True)
@@ -28,7 +28,7 @@ dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 
 ##### CTRL
 import xde_isir_controller  as xic
-dynModel2 = xic.getModelFromSharedLibrary("resources/libModelKukaFixed.so", "Create_kukafixed", rname)
+dynModel2 = xic.getModelFromSharedLibrary("../resources/libModelKukaFixed.so", "Create_kukafixed", rname)
 
 
 ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
@@ -41,7 +41,7 @@ ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 #fullTask.set_q(gposdes)
 #fullTask.set_qdot(gveldes)
 
-taskmanager = xic.TaskXMLParser("resources/fulljointcontrol1.xml", ctrl.controller)
+taskmanager = xic.TaskXMLParser("resources/fulljointcontrol2.xml", ctrl.controller)
 taskdesc = xic.fullstateCast(taskmanager.getTaskdesc("full"))
 trajXML = xic.trajectoryReaderFullJointCast( taskmanager.getTrajectoryReader("full_pos"))
 ctrl.add_updater(trajXML)
