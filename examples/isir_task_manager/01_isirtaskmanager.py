@@ -31,7 +31,7 @@ ctrl = xic.ISIRController(dynModel, rname, wm.phy, wm.icsync, "quadprog", True)
 #ctrl = xic.ISIRController(dynModel2, rname, wm.phy, wm.icsync, "quadprog", False)
 
 ##### Task manager
-taskmanager = xic.TaskXMLParser("fulljointcontrol1.xml", ctrl.controller)
+taskmanager = xic.TaskXMLParser("resources/fulljointcontrol1.xml", ctrl.controller)
 
 ##### OBSERVERS
 #jpobs = ctrl.add_updater(xic.observers.JointPositionsObserver(ctrl.getModel()))
