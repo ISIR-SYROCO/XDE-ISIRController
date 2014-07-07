@@ -39,6 +39,7 @@ try:
     orientationCast = swig_isir_controller.isir_task_manager.orientationCast
     comCast = swig_isir_controller.isir_task_manager.comCast
     contactCast = swig_isir_controller.isir_task_manager.contactCast
+    trajectoryReaderFullJointCast = swig_isir_controller.isir_task_manager.trajectoryReaderFullJointCast
 except:
     TaskXMLParser = None
 
