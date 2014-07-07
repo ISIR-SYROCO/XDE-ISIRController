@@ -1,5 +1,5 @@
 <tasks>
-    <task id="full" type="ACCELERATION" active="1">
+    <task id="full" mode="objective" type="ACCELERATION" active="1">
         <param w="0.0001" kp="10" kd="4"/>
         <feature type="fullstate">
             <part value="INTERNAL"/>
@@ -10,7 +10,7 @@
         </feature>
     </task>
 
-    <task id="frame" type="ACCELERATION" active="1">
+    <task id="frame" mode="objective" type="ACCELERATION" active="1">
         <param w="1" kp="7" kd="4"/>
         <feature type="position">
             <dofs value="XYZ"/>
