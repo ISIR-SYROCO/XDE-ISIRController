@@ -246,7 +246,19 @@ class CoMPositionObserver(Recorder):
     def update(self):
         self.save_record(np.array(self.dynModel.getCoMPosition()).flatten())
 
+class CoMAccelerationObserver(Recorder):
+    def __init__(self, dynModel, dt):
+        Recorder.__init__(self)
+        self.dynModel   = dynModel
+        self.dt         = dt
+        self.prev_CoMVelocity   = self.dynModel.getCoMVelocity()
 
+    def update(self):
+        CoMVelocity           = self.dynModel.getCoMVelocity()
+        CoMAcceleration       = (CoMVelocity - self.prev_CoMVelocity)/self.dt
+        self.prev_CoMVelocity = CoMVelocity.copy()
+        
+        self.save_record(np.array(CoMAcceleration).flatten())
 
 class ZMPLIPMPositionObserver(Recorder):
     def __init__(self, dynModel, H_0_plane, dt, gravity):
