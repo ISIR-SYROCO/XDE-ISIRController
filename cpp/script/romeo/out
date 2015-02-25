@@ -1,0 +1,26 @@
+0.479 [ Warning][DeploymentComponent::loadComponent] Forcing priority (99) of thread with SCHED_OTHER policy to 0.
+0.479 [ Warning][Service::addLocalOperation] While adding Operation: 'setPeriod': replacing previously added operation.
+0.531 [ Warning][Thread] Lowering scheduler type to SCHED_OTHER for non-privileged users..
+0.532 [ Warning][Activity] Lowering scheduler type to SCHED_OTHER for non-privileged users..
+0.532 [ Warning][DeploymentComponent::loadComponent] Forcing priority (99) of thread with SCHED_OTHER policy to 0.
+0.534 [ Warning][Service::addLocalOperation] While adding Operation: 'setPeriod': replacing previously added operation.
+0.714 [ Warning][Logger] 'addPort' clock_trigger: name already in use. Disconnecting and replacing previous port with new one.
+0.858 [ Warning][Thread] Lowering scheduler type to SCHED_OTHER for non-privileged users..
+0.858 [ Warning][Activity] Lowering scheduler type to SCHED_OTHER for non-privileged users..
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "romeo.py", line 24, in <module>
+    wm.createAllAgents(TIME_STEP)
+  File "/home/xde-user/.local/lib/python2.7/site-packages/xde_world_manager/core.py", line 224, in createAllAgents
+    self.createAndConnectGraphicAgent(graph_name)
+  File "/home/xde-user/.local/lib/python2.7/site-packages/xde_world_manager/core.py", line 228, in createAndConnectGraphicAgent
+    self.createGraphicAgent(graph_name)
+  File "/home/xde-user/.local/lib/python2.7/site-packages/xde_world_manager/core.py", line 136, in createGraphicAgent
+    self.graph_scn, scene_name, window_name, viewport_name = agents.graphic.simple.setupSingleGLView(self.graph)
+  File "/tmp/tmplgUjsx/xde/bin/lib//modules/framework/dsimi/pkg/src/agents/graphic/simple.py", line 42, in setupSingleGLView
+  File "/tmp/tmplgUjsx/xde/bin/lib//modules/framework/dsimi/pkg/src/agents/graphic/simple.py", line 14, in setupGLOgre
+  File "/tmp/tmplgUjsx/xde/bin/lib//modules/framework/dsimi/base/core/interface/python/xdefw/rtt.py", line 502, in inner_method
+  File "/tmp/tmplgUjsx/xde/bin/lib//modules/framework/dsimi/base/core/interface/python/xdefw/rtt.py", line 557, in call
+  File "/tmp/tmplgUjsx/xde/bin/lib//modules/framework/dsimi/base/core/interface/python/main/rtt_interface.py", line 528, in call
+KeyboardInterrupt
+>>> 
