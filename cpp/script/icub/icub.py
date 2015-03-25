@@ -44,7 +44,7 @@ N = robot.getJointSpaceDim()
 
 jointmap = xrl.getJointMapping(xr.icub_simple, robot)
 
-ctrl.s.setDynModel(str(dynModel.this.__long__()), rname, str(id(jointmap)))
+ctrl.s.setDynModel(str(dynModel.this.__long__()), rname, str(id(jointmap)), "ScenarioICub_01_Standing")
 
 wm.phy.s.Connectors.OConnectorRobotState.new("ocpos"+rname, rname+"_", rname)
 wm.phy.s.Connectors.IConnectorRobotJointTorque.new("ict"+rname, rname+"_", rname)

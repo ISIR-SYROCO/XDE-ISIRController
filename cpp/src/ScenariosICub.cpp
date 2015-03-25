@@ -1,4 +1,4 @@
-#include "TaskSetICub.h"
+#include "ScenariosICub.h"
 #include <cmath>
 
 #ifndef PI
@@ -6,15 +6,15 @@
 
 #endif
 
-Task_01_Standing::Task_01_Standing() : orcisir::ISIRTaskManagerCollectionBase()
+ScenarioICub_01_Standing::ScenarioICub_01_Standing() : orcisir::ISIRTaskManagerCollectionBase()
 {
 }
 
-Task_01_Standing::~Task_01_Standing()
+ScenarioICub_01_Standing::~ScenarioICub_01_Standing()
 {
 }
 
-void Task_01_Standing::doInit(orcisir::ISIRController& ctrl, orcisir::ISIRModel& model)
+void ScenarioICub_01_Standing::doInit(orcisir::ISIRController& ctrl, orcisir::ISIRModel& model)
 {
     // Initialise full posture task
     Eigen::VectorXd q_full = Eigen::VectorXd::Zero(model.nbInternalDofs());
@@ -65,7 +65,7 @@ void Task_01_Standing::doInit(orcisir::ISIRController& ctrl, orcisir::ISIRModel&
     taskManagers["tmFootContactRight"] = new orcisir::ISIRContactSetTaskManager(ctrl, model, "RightFootContactTask", "r_foot", RFContacts, 4, mu_sys, margin);
 }
 
-void Task_01_Standing::doUpdate(double time, orcisir::ISIRModel& state, void** args)
+void ScenarioICub_01_Standing::doUpdate(double time, orcisir::ISIRModel& state, void** args)
 {
 }
 

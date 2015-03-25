@@ -1,14 +1,14 @@
-#ifndef TASKSETROMEOBALANCE_H
-#define TASKSETROMEOBALANCE_H
+#ifndef SCENARIOSROMEO_H
+#define SCENARIOSROMEO_H
 
 #include "orcisir/Tasks/ISIRTaskManagerCollectionBase.h"
 #include "orcisir/Models/ISIRModel.h"
 
-class TaskSetRomeoBalance: public orcisir::ISIRTaskManagerCollectionBase
+class ScenarioRomeo_Balance: public orcisir::ISIRTaskManagerCollectionBase
 {
     public:
-        TaskSetRomeoBalance();
-        virtual ~TaskSetRomeoBalance();
+        ScenarioRomeo_Balance();
+        virtual ~ScenarioRomeo_Balance();
     protected: 
         virtual void doInit(orcisir::ISIRController& ctrl, orcisir::ISIRModel& model);
         virtual void doUpdate(double time, orcisir::ISIRModel& state, void** args); 

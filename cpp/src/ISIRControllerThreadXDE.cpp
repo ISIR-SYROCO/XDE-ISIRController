@@ -8,8 +8,7 @@
 #include "orcisir/Tasks/ISIRTaskManagerCollectionBase.h"
 #include "orcXdeModel.h"
 
-#include "TaskSetRomeoBalance.h"
-#include "TaskSetICub.h"
+#include "ScenarioLibrary.h"
 
 ISIRControllerThreadXDE::ISIRControllerThreadXDE(const std::string& name)
     : TaskContext(name)
@@ -28,10 +27,6 @@ ISIRControllerThreadXDE::ISIRControllerThreadXDE(const std::string& name)
 	this->addOperation("setTimeStep", &ISIRControllerThreadXDE::setTimeStep, this, RTT::OwnThread);
 	this->addOperation("setDynModel", &ISIRControllerThreadXDE::setDynModelPointerStr, this, RTT::OwnThread);
 	this->addOperation("loadPhy", &ISIRControllerThreadXDE::loadAgent, this, RTT::OwnThread);
-
-
-    ISIRTaskSet = new TaskSetRomeoBalance();
-    //ISIRTaskSet = new Task_01_Standing();
 }
 
 ISIRControllerThreadXDE::~ISIRControllerThreadXDE()
@@ -39,7 +34,7 @@ ISIRControllerThreadXDE::~ISIRControllerThreadXDE()
     if (ISIRctrl != NULL) delete ISIRctrl;
     if (orcModel != NULL) delete orcModel;
     if (robot != NULL) delete robot;
-    if (ISIRTaskSet != NULL) delete ISIRTaskSet;
+    if (taskScenario != NULL) delete taskScenario;
 }
 
 void ISIRControllerThreadXDE::loadAgent(std::string name){
@@ -108,7 +103,12 @@ void ISIRControllerThreadXDE::updateHook(){
 	}
 */
 
-    ISIRTaskSet->update(time_sim, *orcModel, NULL);
+    if (taskScenario == NULL || ISIRctrl == NULL)
+    {
+        throw std::runtime_error(std::string("[ISIRControllerThreadXDE::updateHook()]: Error - taskScenario or ISIRctrl has not been set"));        
+    } 
+
+    taskScenario->update(time_sim, *orcModel, NULL);
 	Eigen::VectorXd tau(robot->nbDofs());
 	ISIRctrl->computeOutput(tau);
     port_out_tau.write(tau);
@@ -136,16 +136,19 @@ void ISIRControllerThreadXDE::setISIRController()
 }
 
 
-void ISIRControllerThreadXDE::setDynModelPointerStr(const std::string& dynModelPtrStr, const std::string& rname, const std::string& jmapPtrStr)
+void ISIRControllerThreadXDE::setDynModelPointerStr(const std::string& dynModelPtrStr, const std::string& rname, const std::string& jmapPtrStr, const std::string& sname)
 {
     long long dynModelPtr = atoll(dynModelPtrStr.c_str());
     long long jmapPtr = atoll(jmapPtrStr.c_str());
     robot = reinterpret_cast<xde::gvm::extra::DynamicModel*>(dynModelPtr);
     jointMap = reinterpret_cast<PyDictObject*>(jmapPtr);
     robotName = rname;
+    scenarioName = sname;
 
     setISIRController();
-    ISIRTaskSet->init(*ISIRctrl, *orcModel);
+
+    taskScenario = LoadScenario(sname);
+    taskScenario->init(*ISIRctrl, *orcModel);
 }
 
 void ISIRControllerThreadXDE::setTimeStep(RTT::Seconds _dt)

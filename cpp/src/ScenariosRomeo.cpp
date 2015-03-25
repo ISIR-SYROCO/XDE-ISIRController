@@ -1,18 +1,18 @@
-#include "TaskSetRomeoBalance.h"
+#include "ScenariosRomeo.h"
 
 #ifndef PI
 #define PI 3.1415926
 #endif
 
-TaskSetRomeoBalance::TaskSetRomeoBalance() : orcisir::ISIRTaskManagerCollectionBase()
+ScenarioRomeo_Balance::ScenarioRomeo_Balance() : orcisir::ISIRTaskManagerCollectionBase()
 {
 }
 
-TaskSetRomeoBalance::~TaskSetRomeoBalance()
+ScenarioRomeo_Balance::~ScenarioRomeo_Balance()
 {
 }
 
-void TaskSetRomeoBalance::doInit(orcisir::ISIRController& ctrl, orcisir::ISIRModel& model)
+void ScenarioRomeo_Balance::doInit(orcisir::ISIRController& ctrl, orcisir::ISIRModel& model)
 {
     // Initialise full posture task
     Eigen::VectorXd q_full = Eigen::VectorXd::Zero(model.nbInternalDofs());
@@ -71,7 +71,7 @@ void TaskSetRomeoBalance::doInit(orcisir::ISIRController& ctrl, orcisir::ISIRMod
     tmSegPoseFootRight = dynamic_cast<orcisir::ISIRSegPoseTaskManager*>(taskManagers["tmSegPoseFootRight"]);
 }
 
-void TaskSetRomeoBalance::doUpdate(double time, orcisir::ISIRModel& state, void** args)
+void ScenarioRomeo_Balance::doUpdate(double time, orcisir::ISIRModel& state, void** args)
 {
     static int act = 0;
     if (act == 0 && time > 2.0)

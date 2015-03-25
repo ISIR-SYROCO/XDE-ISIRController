@@ -38,7 +38,7 @@ class ISIRControllerThreadXDE: public RTT::TaskContext{
 		void updateHook();
 
         void setTimeStep(RTT::Seconds dt);
-		void setDynModelPointerStr(const std::string& dynPtrStr, const std::string& rname, const std::string& jmapPtrStr);
+		void setDynModelPointerStr(const std::string& dynPtrStr, const std::string& rname, const std::string& jmapPtrStr, const std::string& sname);
 		void loadAgent(std::string name);
 
 	private:
@@ -47,14 +47,14 @@ class ISIRControllerThreadXDE: public RTT::TaskContext{
 
 		xde::gvm::extra::DynamicModel* robot;
         std::string robotName;
+        std::string scenarioName;
 		PyDictObject* jointMap;
 		orcisir::OneLevelSolverWithQLD* internalSolver;
 		orcXdeModel* orcModel;
    	    orcisir::ISIRController* ISIRctrl;
-        orcisir::ISIRTaskManagerCollectionBase* ISIRTaskSet;
+        orcisir::ISIRTaskManagerCollectionBase* taskScenario;
 
 		void setISIRController();
-		//void setTasks();
 
         // Input ports
 		RTT::InputPort< Eigen::VectorXd > port_in_q;
@@ -82,5 +82,3 @@ class ISIRControllerThreadXDE: public RTT::TaskContext{
 ORO_CREATE_COMPONENT( ISIRControllerThreadXDE );
 
 #endif
-
-

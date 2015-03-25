@@ -1,7 +1,8 @@
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-include_directories(/usr/include/eigen3)
-include_directories(/usr/include/eigen3/unsupported)
+include_directories(${PC_EIGEN_INCLUDE_DIRS})
+#include_directories(/usr/include/eigen3)
+#include_directories(/usr/include/eigen3/unsupported)
 
 include_directories(
     ${OROCOS-RTT_INCLUDE_DIR}
@@ -21,7 +22,7 @@ LINK_DIRECTORIES(
 )
 
 orocos_component(ISIRControllerThreadXDE
-	ISIRControllerThreadXDE.cpp TaskSetRomeoBalance.cpp TaskSetICub.cpp orcXdeModel.cpp)
+	ISIRControllerThreadXDE.cpp orcXdeModel.cpp ScenariosRomeo.cpp ScenariosICub.cpp ScenarioLibrary.cpp)
 
 target_link_libraries(
 	ISIRControllerThreadXDE
@@ -32,4 +33,3 @@ target_link_libraries(
 	${PC_ORCISIR_CONTROLLER_LIBRARIES}
     ${PC_PYTHON2_LIBRARIES}
 )
-
