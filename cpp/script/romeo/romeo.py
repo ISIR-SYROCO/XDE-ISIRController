@@ -40,7 +40,7 @@ romeoWorld = xrl.createWorldFromUrdfFile(xr.romeo_collision, rname, [0,0,0.0,1,0
 wm.addWorld(romeoWorld)
 
 #Controller
-control = xdefw.rtt.Task(ddeployer.load("control", "ISIRControllerThreadXDE", "ISIRControllerThreadXDE-gnulinux", "", libdir="../../_build/src/"))
+control = xdefw.rtt.Task(ddeployer.load("control", "ISIRControllerThreadXDE", "ISIRControllerThreadXDE-gnulinux", "", libdir="../../_build/"))
 
 #import xde.desc.physic.physic_pb2
 #model = xde.desc.physic.physic_pb2.MultiBodyModel()
@@ -53,6 +53,7 @@ control = xdefw.rtt.Task(ddeployer.load("control", "ISIRControllerThreadXDE", "I
 dynmodel = xrl.getDynamicModelFromWorld(romeoWorld)
 romeo = wm.phy.s.GVM.Robot(rname)
 romeo.enableGravity(True)
+
 jointmap = xrl.getJointMapping(xr.romeo_collision, romeo)
 N  = romeo.getJointSpaceDim()
 
@@ -80,6 +81,7 @@ for name, val in [("LShoulderPitch", pi/2.), ("RShoulderPitch", pi/2.), ("LElbow
 ##### SET INTERACTION
 wm.ms.setContactLawForMaterialPair("material.metal", "material.concrete", 1, mu_sys)
 romeo.enableContactWithBody("ground.ground", True)
+wm.contact.showContacts([(rname+"."+b,"ground.ground") for b in ["l_ankle", "r_ankle"]])
 
 ##### SET INITIAL CONFIGURATION
 romeo.setJointPositions(qinit)

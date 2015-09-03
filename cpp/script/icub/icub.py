@@ -12,8 +12,11 @@ import xde_spacemouse as spacemouse
 import physicshelper
 import lgsm
 import time
+import math
 
 TIME_STEP = 0.01 
+
+M_SQRT1_2 = 1/math.sqrt(2)
 
 wm = xwm.WorldManager()
 wm.createAllAgents(TIME_STEP)
@@ -30,12 +33,12 @@ wm.addWorld(groundWorld)
 ##### ROBOT
 rname = "icub"
 robot_fixed_base = False
-robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [0,0,0.6,1,0,0,0], robot_fixed_base, 0.001, 0.001)
+robotWorld = xrl.createWorldFromUrdfFile(xr.icub_simple, rname, [0,0,0.6,-M_SQRT1_2,0,0,M_SQRT1_2], robot_fixed_base, 0.001, 0.001)
 
 wm.addWorld(robotWorld)
 
 #Controller
-ctrl = xdefw.rtt.Task(ddeployer.load("control", "ISIRControllerThreadXDE", "ISIRControllerThreadXDE-gnulinux", "", libdir="../../_build/src/"))
+ctrl = xdefw.rtt.Task(ddeployer.load("control", "ISIRControllerThreadXDE", "ISIRControllerThreadXDE-gnulinux", "", libdir="../../_build/"))
 
 dynModel = xrl.getDynamicModelFromWorld(robotWorld)
 robot = wm.phy.s.GVM.Robot(rname)

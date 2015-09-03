@@ -6,7 +6,7 @@
 
 //=================================  Class methods  =================================//
 orcXdeModel::orcXdeModel(xde::gvm::extra::DynamicModel* xdeModel, std::string rname, PyDictObject* jointList)
-    :orcisir::ISIRModel(rname, xdeModel->nbDofs(), !xdeModel->hasFixedRoot())
+    :wocra::wOcraModel(rname, xdeModel->nbDofs(), !xdeModel->hasFixedRoot())
     , _m(xdeModel)
     , _actuatedDofs(xdeModel->nbInternalDofs())
     , _linearTerms(xdeModel->nbDofs())

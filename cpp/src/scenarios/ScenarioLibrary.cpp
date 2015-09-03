@@ -1,9 +1,9 @@
-#include "ScenarioLibrary.h"
+#include "scenarios/ScenarioLibrary.h"
 
-#include "ScenariosRomeo.h"
-#include "ScenariosICub.h"
+#include "scenarios/romeo/ScenariosRomeo.h"
+#include "scenarios/icub/ScenariosICub.h"
 
-orcisir::ISIRTaskManagerCollectionBase* LoadScenario(const std::string& name)
+wocra::wOcraTaskSequenceBase* ScenarioLibrary::LoadScenario(const std::string& name)
 {
     if (name == "ScenarioICub_01_Standing")
         return new ScenarioICub_01_Standing();

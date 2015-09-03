@@ -1,8 +1,7 @@
 #ifndef ORCXDEMODEL_H
 #define ORCXDEMODEL_H
 
-//#include "orc/control/Model.h"
-#include "orcisir/Models/ISIRModel.h"
+#include "wocra/Models/wOcraModel.h"
 #include <Python.h>
 #include <dictobject.h>
 
@@ -13,7 +12,7 @@
 #include <xdecore/gvm.h>
 #include <xdecore/gvm/DynamicModel.h>
 
-class orcXdeModel: public orcisir::ISIRModel
+class orcXdeModel: public wocra::wOcraModel
 {
 public:
 

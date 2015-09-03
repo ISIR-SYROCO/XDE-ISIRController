@@ -5,10 +5,9 @@
 #include <orocos/ocl/DeploymentComponent.hpp>
 #include <sstream>
 #include <ctime>
-#include "orcisir/Tasks/ISIRTaskManagerCollectionBase.h"
 #include "orcXdeModel.h"
 
-#include "ScenarioLibrary.h"
+#include "scenarios/ScenarioLibrary.h"
 
 ISIRControllerThreadXDE::ISIRControllerThreadXDE(const std::string& name)
     : TaskContext(name)
@@ -130,9 +129,9 @@ void ISIRControllerThreadXDE::updateHook(){
 void ISIRControllerThreadXDE::setISIRController()
 {
     useReducedProblem = false;
-    internalSolver = new orcisir::OneLevelSolverWithQLD();
+    internalSolver = new wocra::OneLevelSolverWithQLD();
     orcModel = new orcXdeModel(robot, robotName, jointMap);
-    ISIRctrl = new orcisir::ISIRController("myCtrl", *orcModel, *internalSolver, useReducedProblem);
+    ISIRctrl = new wocra::wOcraController("myCtrl", *orcModel, *internalSolver, useReducedProblem);
 }
 
 
@@ -147,7 +146,7 @@ void ISIRControllerThreadXDE::setDynModelPointerStr(const std::string& dynModelP
 
     setISIRController();
 
-    taskScenario = LoadScenario(sname);
+    taskScenario = ScenarioLibrary::LoadScenario(sname);
     taskScenario->init(*ISIRctrl, *orcModel);
 }
 

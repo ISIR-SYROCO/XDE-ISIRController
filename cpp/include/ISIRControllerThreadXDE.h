@@ -15,10 +15,9 @@
 
 #include <xdecore/gvm.h>
 #include <xdecore/gvm/DynamicModel.h>
-#include "orcisir/ISIRController.h"
-#include "orcisir/Solvers/OneLevelSolver.h"
-//#include "orcisir/Models/XdeModel.h"
-#include "orcisir/Tasks/ISIRTaskManagerCollectionBase.h"
+#include "wocra/wOcraController.h"
+#include "wocra/Solvers/OneLevelSolver.h"
+#include "wocra/Tasks/wOcraTaskSequenceBase.h"
 #include "orcXdeModel.h"
 
 //XDEDynamicModel* getModelFromXDEDynamicModel(xde::gvm::extra::DynamicModel& xdeModel)
@@ -49,10 +48,10 @@ class ISIRControllerThreadXDE: public RTT::TaskContext{
         std::string robotName;
         std::string scenarioName;
 		PyDictObject* jointMap;
-		orcisir::OneLevelSolverWithQLD* internalSolver;
+		wocra::OneLevelSolverWithQLD* internalSolver;
 		orcXdeModel* orcModel;
-   	    orcisir::ISIRController* ISIRctrl;
-        orcisir::ISIRTaskManagerCollectionBase* taskScenario;
+   	    wocra::wOcraController* ISIRctrl;
+        wocra::wOcraTaskSequenceBase* taskScenario;
 
 		void setISIRController();
 
