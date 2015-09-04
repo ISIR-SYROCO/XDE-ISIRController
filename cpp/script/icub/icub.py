@@ -47,7 +47,8 @@ N = robot.getJointSpaceDim()
 
 jointmap = xrl.getJointMapping(xr.icub_simple, robot)
 
-ctrl.s.setDynModel(str(dynModel.this.__long__()), rname, str(id(jointmap)), "sequence_iCub_01_standing")
+sequence = "sequence_iCub_02_squatting"
+ctrl.s.setDynModel(str(dynModel.this.__long__()), rname, str(id(jointmap)), sequence)
 
 wm.phy.s.Connectors.OConnectorRobotState.new("ocpos"+rname, rname+"_", rname)
 wm.phy.s.Connectors.IConnectorRobotJointTorque.new("ict"+rname, rname+"_", rname)
@@ -87,7 +88,7 @@ wm.phy.s.agent.triggerUpdate()
 
 #import xdefw.interactive
 #xdefw.interactive.shell_console()()
-time.sleep(10.)
+time.sleep(30.)
 
 wm.stopAgents()
 ctrl.s.stop()
