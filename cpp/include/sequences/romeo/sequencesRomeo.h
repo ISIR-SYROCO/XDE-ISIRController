@@ -1,14 +1,14 @@
-#ifndef SCENARIOSROMEO_H
-#define SCENARIOSROMEO_H
+#ifndef SEQUENCES_ROMEO_H
+#define SEQUENCES_ROMEO_H
 
 #include "wocra/Tasks/wOcraTaskSequenceBase.h"
 #include "wocra/Models/wOcraModel.h"
 
-class ScenarioRomeo_Balance: public wocra::wOcraTaskSequenceBase
+class SequenceRomeo_Balance: public wocra::wOcraTaskSequenceBase
 {
     public:
-        ScenarioRomeo_Balance();
-        virtual ~ScenarioRomeo_Balance();
+        SequenceRomeo_Balance();
+        virtual ~SequenceRomeo_Balance();
     protected: 
         virtual void doInit(wocra::wOcraController& ctrl, wocra::wOcraModel& model);
         virtual void doUpdate(double time, wocra::wOcraModel& state, void** args); 

@@ -7,7 +7,7 @@
 #include <ctime>
 #include "orcXdeModel.h"
 
-#include "scenarios/ScenarioLibrary.h"
+#include "sequences/sequenceLibrary.h"
 
 ISIRControllerThreadXDE::ISIRControllerThreadXDE(const std::string& name)
     : TaskContext(name)
@@ -33,7 +33,7 @@ ISIRControllerThreadXDE::~ISIRControllerThreadXDE()
     if (ISIRctrl != NULL) delete ISIRctrl;
     if (orcModel != NULL) delete orcModel;
     if (robot != NULL) delete robot;
-    if (taskScenario != NULL) delete taskScenario;
+    if (taskSequence != NULL) delete taskSequence;
 }
 
 void ISIRControllerThreadXDE::loadAgent(std::string name){
@@ -102,12 +102,12 @@ void ISIRControllerThreadXDE::updateHook(){
 	}
 */
 
-    if (taskScenario == NULL || ISIRctrl == NULL)
+    if (taskSequence == NULL || ISIRctrl == NULL)
     {
-        throw std::runtime_error(std::string("[ISIRControllerThreadXDE::updateHook()]: Error - taskScenario or ISIRctrl has not been set"));        
+        throw std::runtime_error(std::string("[ISIRControllerThreadXDE::updateHook()]: Error - taskSequence or ISIRctrl has not been set"));        
     } 
 
-    taskScenario->update(time_sim, *orcModel, NULL);
+    taskSequence->update(time_sim, *orcModel, NULL);
 	Eigen::VectorXd tau(robot->nbDofs());
 	ISIRctrl->computeOutput(tau);
     port_out_tau.write(tau);
@@ -146,8 +146,8 @@ void ISIRControllerThreadXDE::setDynModelPointerStr(const std::string& dynModelP
 
     setISIRController();
 
-    taskScenario = ScenarioLibrary::LoadScenario(sname);
-    taskScenario->init(*ISIRctrl, *orcModel);
+    taskSequence = SequenceLibrary::LoadSequence(sname);
+    taskSequence->init(*ISIRctrl, *orcModel);
 }
 
 void ISIRControllerThreadXDE::setTimeStep(RTT::Seconds _dt)

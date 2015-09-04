@@ -1,18 +1,18 @@
-#include "scenarios/romeo/ScenariosRomeo.h"
+#include "sequences/romeo/sequencesRomeo.h"
 
 #ifndef PI
 #define PI 3.1415926
 #endif
 
-ScenarioRomeo_Balance::ScenarioRomeo_Balance() : wocra::wOcraTaskSequenceBase()
+SequenceRomeo_Balance::SequenceRomeo_Balance() : wocra::wOcraTaskSequenceBase()
 {
 }
 
-ScenarioRomeo_Balance::~ScenarioRomeo_Balance()
+SequenceRomeo_Balance::~SequenceRomeo_Balance()
 {
 }
 
-void ScenarioRomeo_Balance::doInit(wocra::wOcraController& ctrl, wocra::wOcraModel& model)
+void SequenceRomeo_Balance::doInit(wocra::wOcraController& ctrl, wocra::wOcraModel& model)
 {
     // Initialise full posture task
     Eigen::VectorXd q_full = Eigen::VectorXd::Zero(model.nbInternalDofs());
@@ -71,7 +71,7 @@ void ScenarioRomeo_Balance::doInit(wocra::wOcraController& ctrl, wocra::wOcraMod
     tmSegPoseFootRight = dynamic_cast<wocra::wOcraSegPoseTaskManager*>(taskManagers["tmSegPoseFootRight"]);
 }
 
-void ScenarioRomeo_Balance::doUpdate(double time, wocra::wOcraModel& state, void** args)
+void SequenceRomeo_Balance::doUpdate(double time, wocra::wOcraModel& state, void** args)
 {
     static int actFoot = 0;
     static int actCoM = 0;

@@ -1,13 +1,13 @@
-#ifndef SCENARIOSICUB_H
-#define SCENARIOSICUB_H
+#ifndef SEQUENCE_ICUB_01_STANDING_H
+#define SEQUENCE_ICUB_01_STANDING_H
 
 #include "wocra/Tasks/wOcraTaskSequenceBase.h"
 
-class ScenarioICub_01_Standing: public wocra::wOcraTaskSequenceBase
+class Sequence_iCub_01_Standing: public wocra::wOcraTaskSequenceBase
 {
     public:
-        ScenarioICub_01_Standing();
-        virtual ~ScenarioICub_01_Standing();
+        Sequence_iCub_01_Standing();
+        virtual ~Sequence_iCub_01_Standing();
     protected: 
         virtual void doInit(wocra::wOcraController& ctrl, wocra::wOcraModel& model);
         virtual void doUpdate(double time, wocra::wOcraModel& state, void** args); 
@@ -26,4 +26,4 @@ class ScenarioICub_01_Standing: public wocra::wOcraTaskSequenceBase
 */
 };
 
-#endif // TASKSETROMEOBALANCE_H
+#endif 

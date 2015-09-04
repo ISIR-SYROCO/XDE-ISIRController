@@ -57,7 +57,7 @@ romeo.enableGravity(True)
 jointmap = xrl.getJointMapping(xr.romeo_collision, romeo)
 N  = romeo.getJointSpaceDim()
 
-control.s.setDynModel(str(dynmodel.this.__long__()), rname, str(id(jointmap)), "ScenarioRomeo_Balance")
+control.s.setDynModel(str(dynmodel.this.__long__()), rname, str(id(jointmap)), "sequence_Romeo_balance")
 
 #create connectors to get robot k1g state 'k1g_q', 'k1g_qdot', 'k1g_Hroot', 'k1g_Troot', 'k1g_H'
 wm.phy.s.Connectors.OConnectorRobotState.new("ocpos"+rname, rname+"_", rname)

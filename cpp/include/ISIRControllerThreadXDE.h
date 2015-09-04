@@ -20,11 +20,6 @@
 #include "wocra/Tasks/wOcraTaskSequenceBase.h"
 #include "orcXdeModel.h"
 
-//XDEDynamicModel* getModelFromXDEDynamicModel(xde::gvm::extra::DynamicModel& xdeModel)
-//{
-//    return new XDEDynamicModel(xdeModel);
-//}
-
 class ISIRControllerThreadXDE: public RTT::TaskContext{
 
 	public:
@@ -51,7 +46,7 @@ class ISIRControllerThreadXDE: public RTT::TaskContext{
 		wocra::OneLevelSolverWithQLD* internalSolver;
 		orcXdeModel* orcModel;
    	    wocra::wOcraController* ISIRctrl;
-        wocra::wOcraTaskSequenceBase* taskScenario;
+        wocra::wOcraTaskSequenceBase* taskSequence;
 
 		void setISIRController();
 

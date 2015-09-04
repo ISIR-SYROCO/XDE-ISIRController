@@ -3,9 +3,9 @@
 
 #include "wocra/Tasks/wOcraTaskSequenceBase.h"
 
-class ScenarioLibrary {
+class SequenceLibrary {
     public:
-        static wocra::wOcraTaskSequenceBase* LoadScenario(const std::string& name);
+        static wocra::wOcraTaskSequenceBase* LoadSequence(const std::string& name);
 };
 
 #endif
