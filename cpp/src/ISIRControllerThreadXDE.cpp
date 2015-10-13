@@ -15,10 +15,10 @@ ISIRControllerThreadXDE::ISIRControllerThreadXDE(const std::string& name)
 {
     time_sim = 0.0;
     // Connect ports
-    this->addPort("q", port_in_q);
-    this->addPort("qdot", port_in_qdot);
-    this->addPort("d", port_in_d);
-    this->addPort("t", port_in_t);
+    this->addEventPort("q", port_in_q);
+    this->addEventPort("qdot", port_in_qdot);
+    this->addEventPort("d", port_in_d);
+    this->addEventPort("t", port_in_t);
 //    this->addPort("contacts", in_contacts);
 
     this->addPort("tau", port_out_tau);

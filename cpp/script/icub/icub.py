@@ -14,7 +14,7 @@ import lgsm
 import time
 import math
 
-TIME_STEP = 0.01 
+TIME_STEP = 0.1 
 
 M_SQRT1_2 = 1/math.sqrt(2)
 
@@ -47,11 +47,13 @@ N = robot.getJointSpaceDim()
 
 jointmap = xrl.getJointMapping(xr.icub_simple, robot)
 
-sequence = "sequence_iCub_02_squatting"
+#sequence = "sequence_iCub_02_squatting"
+sequence = "sequence_iCub_03_dbal_standing"
 ctrl.s.setDynModel(str(dynModel.this.__long__()), rname, str(id(jointmap)), sequence)
 
 wm.phy.s.Connectors.OConnectorRobotState.new("ocpos"+rname, rname+"_", rname)
 wm.phy.s.Connectors.IConnectorRobotJointTorque.new("ict"+rname, rname+"_", rname)
+wm.icsync.addEvent(rname+"_tau")
 
 wm.phy.getPort(rname+"_q").connectTo(ctrl.getPort("q"))
 wm.phy.getPort(rname+"_qdot").connectTo(ctrl.getPort("qdot"))
@@ -79,17 +81,18 @@ robot.setJointVelocities(lgsm.zeros(N))
 dynModel.setJointPositions(qinit)
 dynModel.setJointVelocities(lgsm.zeros(N))
 
+wm.startAgents()
+wm.phy.s.agent.triggerUpdate()
+
 ##### SIMULATE
 ctrl.s.setTimeStep(TIME_STEP)
 ctrl.s.start()
 
-wm.startAgents()
-wm.phy.s.agent.triggerUpdate()
 
 #import xdefw.interactive
 #xdefw.interactive.shell_console()()
-time.sleep(30.)
+#time.sleep(30.)
 
-wm.stopAgents()
-ctrl.s.stop()
+#wm.stopAgents()
+#ctrl.s.stop()
 

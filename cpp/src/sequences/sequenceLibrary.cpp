@@ -5,6 +5,7 @@
 // iCub sequences
 #include "sequences/icub/examples_basic/01_standing.h"
 #include "sequences/icub/examples_basic/02_squatting.h"
+#include "sequences/icub/examples_basic/03_dbal_standing.h"
 
 wocra::wOcraTaskSequenceBase* SequenceLibrary::LoadSequence(const std::string& name)
 {
@@ -12,6 +13,8 @@ wocra::wOcraTaskSequenceBase* SequenceLibrary::LoadSequence(const std::string& n
         return new Sequence_iCub_01_Standing();
     if (name == "sequence_iCub_02_squatting")
         return new Sequence_iCub_02_Squatting();
+    if (name == "sequence_iCub_03_dbal_standing")
+        return new Sequence_iCub_03_Dbal_Standing();
     else if (name == "sequence_Romeo_balance")
         return new SequenceRomeo_Balance();
     else

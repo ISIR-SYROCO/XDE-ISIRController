@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.8)
 SET(PROJECT_NAME ISIRControllerThreadXDE)
 project(${PROJECT_NAME} CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS "-fpermissive")
 
@@ -26,7 +28,6 @@ ENDIF (UNIX)
 
 # Check dependencies
 find_package(PkgConfig REQUIRED)
-
 find_package(Orocos-RTT REQUIRED ${RTT_HINTS})
 
 PKG_CHECK_MODULES(PC_OCL_DEPLOY ocl-deployment-gnulinux REQUIRED)
@@ -47,11 +48,10 @@ if(NOT PC_EIGEN_FOUND)
     message("Failed to detect Eigen, check PKG_CONFIG_PATH." )
 endif(NOT PC_EIGEN_FOUND)
 
-find_package(PkgConfig REQUIRED)
 PKG_CHECK_MODULES(PC_WLQP_CONTROL wLQP-Control REQUIRED)
 PKG_CHECK_MODULES(PC_OCRA_FRAMEWORK ocra_framework REQUIRED)
 
-#PKG_CHECK_MODULES(PC_ORCISIR_CONTROLLER orcisir_ISIRController REQUIRED)
+find_package(Gurobi REQUIRED)
 
 ADD_DEFINITIONS(-DOROCOS_TARGET=gnulinux)
 
@@ -77,6 +77,7 @@ include_directories(
     ${PC_WLQP_CONTROL_INCLUDE_DIRS}
     ${PC_OCRA_FRAMEWORK_INCLUDE_DIRS} 
     ${PC_PYTHON2_INCLUDE_DIRS}
+    ${GUROBI_INCLUDE_DIRS}
 )
 
 LINK_DIRECTORIES(
@@ -86,6 +87,7 @@ LINK_DIRECTORIES(
     ${PC_WLQP_CONTROL_LIBRARY_DIRS}
     ${PC_OCRA_FRAMEWORK_LIBRARY_DIRS}
     ${PC_PYTHON2_LIBRARY_DIRS}
+    ${GUROBI_LIBRARIES}
 )
 
 orocos_component(${PROJECT_NAME}
@@ -100,5 +102,6 @@ target_link_libraries(
     ${PC_WLQP_CONTROL_LIBRARIES}
     ${PC_OCRA_FRAMEWORK_LIBRARIES}
     ${PC_PYTHON2_LIBRARIES}
+    ${GUROBI_LIBRARIES}
 )
 #add_subdirectory(src)
